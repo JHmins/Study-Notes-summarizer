@@ -31,13 +31,17 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     }
 
     const userId = user.id
-    const [notesResult, categoriesResult] = await Promise.allSettled([
+    const [notesResult, categoriesResult, linksResult, projectsResult] = await Promise.allSettled([
       supabase.from('notes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('categories').select('*').eq('user_id', userId).order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('study_links').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     ])
 
     const notes = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
+    const linksCount = linksResult.status === 'fulfilled' && linksResult.value.count != null ? linksResult.value.count : 0
+    const projectsCount = projectsResult.status === 'fulfilled' && projectsResult.value.count != null ? projectsResult.value.count : 0
 
     const userIsAdmin = isAdmin(user.email)
 
@@ -45,6 +49,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <DashboardClient
         initialNotes={notes}
         initialCategories={categories}
+        initialLinksCount={linksCount}
+        initialProjectsCount={projectsCount}
         user={user as User}
         isAdmin={userIsAdmin}
         initialDate={dateParam ?? undefined}

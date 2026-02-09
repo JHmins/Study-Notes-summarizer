@@ -17,6 +17,10 @@ import { NOTE_STATUS_CONFIG } from '@/types'
 interface DashboardClientProps {
   initialNotes: Note[]
   initialCategories: Category[]
+  /** 수업 자료 링크 총 개수 */
+  initialLinksCount?: number
+  /** 프로젝트 총 개수 */
+  initialProjectsCount?: number
   user: User
   isAdmin?: boolean
   /** URL ?date=yyyy-MM-dd 로 진입 시 오늘/날짜 필터 적용 */
@@ -27,7 +31,7 @@ interface DashboardClientProps {
 
 type SortKey = 'newest' | 'oldest' | 'title'
 
-export default function DashboardClient({ initialNotes, initialCategories, user, isAdmin, initialDate, initialCategoryId }: DashboardClientProps) {
+export default function DashboardClient({ initialNotes, initialCategories, initialLinksCount = 0, initialProjectsCount = 0, user, isAdmin, initialDate, initialCategoryId }: DashboardClientProps) {
   const router = useRouter()
   const [notes, setNotes] = useState<Note[]>(initialNotes)
   const [categories, setCategories] = useState<Category[]>(initialCategories)
@@ -53,15 +57,39 @@ export default function DashboardClient({ initialNotes, initialCategories, user,
   const [isSearching, setIsSearching] = useState(false)
   const [useFileSearch, setUseFileSearch] = useState(false)
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
+  const STUDY_SESSION_KEY = 'studySessionStart'
+  const getSessionStart = () => {
+    if (typeof window === 'undefined') return Date.now()
+    const stored = sessionStorage.getItem(STUDY_SESSION_KEY)
+    if (stored) return parseInt(stored, 10)
+    const now = Date.now()
+    sessionStorage.setItem(STUDY_SESSION_KEY, String(now))
+    return now
+  }
+  const [visitSeconds, setVisitSeconds] = useState(() => Math.max(0, Math.floor((Date.now() - getSessionStart()) / 1000)))
+  const [linksCount, setLinksCount] = useState(initialLinksCount)
+  const [projectsCount, setProjectsCount] = useState(initialProjectsCount)
+  const sessionStartRef = useRef<number>(getSessionStart())
   const supabase = createClient()
   const supabaseRef = useRef(supabase)
   supabaseRef.current = supabase
+
+  // 공부 시간 타이머 (다른 페이지 갔다 와도 같은 탭에서는 계속 누적)
+  useEffect(() => {
+    sessionStartRef.current = getSessionStart()
+    const tick = () => setVisitSeconds(Math.max(0, Math.floor((Date.now() - sessionStartRef.current) / 1000)))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   // 서버에서 받은 최신 데이터와 동기화 (다른 페이지에서 삭제 후 돌아왔을 때 등)
   useEffect(() => {
     setNotes(initialNotes)
     setCategories(initialCategories)
-  }, [initialNotes, initialCategories])
+    setLinksCount(initialLinksCount)
+    setProjectsCount(initialProjectsCount)
+  }, [initialNotes, initialCategories, initialLinksCount, initialProjectsCount])
 
   // URL 검색 파라미터 변경 시 날짜/카테고리 필터 동기화 (전체 노트 클릭 등)
   useEffect(() => {
@@ -146,15 +174,25 @@ export default function DashboardClient({ initialNotes, initialCategories, user,
     if (data) setCategories(data)
   }, [user.id])
 
+  const refreshCounts = useCallback(async () => {
+    const [linksRes, projectsRes] = await Promise.all([
+      supabaseRef.current.from('study_links').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabaseRef.current.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    ])
+    if (linksRes.count != null) setLinksCount(linksRes.count)
+    if (projectsRes.count != null) setProjectsCount(projectsRes.count)
+  }, [user.id])
+
   // 탭/창 포커스 시 목록 다시 불러오기 (삭제·업로드가 다른 탭에서 되었을 때)
   useEffect(() => {
     const onFocus = () => {
       refreshNotes()
       refreshCategories()
+      refreshCounts()
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [refreshNotes, refreshCategories])
+  }, [refreshNotes, refreshCategories, refreshCounts])
 
   const filteredNotes = useMemo(() => {
     let list = notes.filter((note) => {
@@ -282,6 +320,36 @@ export default function DashboardClient({ initialNotes, initialCategories, user,
         </header>
 
         <main className="flex-1 overflow-auto px-4 py-6 sm:px-6">
+          {/* 나의 학습 통계 (맨 앞 배치) */}
+          <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="나의 학습 통계">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">총 노트</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--foreground)]">{notes.length}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">정리한 파일</p>
+            </div>
+            <Link href="/dashboard/links" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md hover:border-[var(--accent)]/40">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">수업 자료</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--foreground)]">{linksCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">저장한 링크</p>
+            </Link>
+            <Link href="/dashboard/projects" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md hover:border-[var(--accent)]/40">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">프로젝트</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--foreground)]">{projectsCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">진행 중</p>
+            </Link>
+            <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-muted)]/20 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--accent)]">공부 시간</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--accent)]">
+                {visitSeconds >= 3600
+                  ? `${Math.floor(visitSeconds / 3600)}시간 ${Math.floor((visitSeconds % 3600) / 60)}분`
+                  : visitSeconds >= 60
+                    ? `${Math.floor(visitSeconds / 60)}분 ${visitSeconds % 60}초`
+                    : `${visitSeconds}초`}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">오늘 공부/방문한 시간</p>
+            </div>
+          </section>
+
           {/* 검색 + 정렬 */}
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">

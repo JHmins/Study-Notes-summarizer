@@ -63,6 +63,7 @@ export default function GraphViewClient({
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const touchStartRef = useRef<{ clientX: number; clientY: number; panX: number; panY: number } | null>(null)
 
   const ZOOM_MIN = 0.35
   const ZOOM_MAX = 3
@@ -96,6 +97,23 @@ export default function GraphViewClient({
     window.addEventListener('mouseup', onUp)
   }, [pan.x, pan.y])
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as Element).closest?.('[data-graph-no-pan]')) return
+    if (e.touches.length !== 1) return
+    touchStartRef.current = {
+      clientX: e.touches[0].clientX,
+      clientY: e.touches[0].clientY,
+      panX: pan.x,
+      panY: pan.y,
+    }
+    setIsDragging(true)
+  }, [pan.x, pan.y])
+
+  const handleTouchEnd = useCallback(() => {
+    touchStartRef.current = null
+    setIsDragging(false)
+  }, [])
+
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
     setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))))
@@ -125,6 +143,21 @@ export default function GraphViewClient({
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [mounted])
+
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    const onTouchMove = (e: TouchEvent) => {
+      if (touchStartRef.current == null || e.touches.length !== 1) return
+      e.preventDefault()
+      setPan({
+        x: touchStartRef.current.panX + (e.touches[0].clientX - touchStartRef.current.clientX),
+        y: touchStartRef.current.panY + (e.touches[0].clientY - touchStartRef.current.clientY),
+      })
+    }
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onTouchMove)
+  }, [])
 
   const cx = size.w / 2
   const cy = size.h / 2
@@ -275,11 +308,14 @@ export default function GraphViewClient({
         <svg
           ref={svgRef}
           viewBox={viewBox}
-          className="w-full h-full touch-none select-none"
-          style={{ minHeight: 'calc(100vh - 3.5rem)', cursor: isDragging ? 'grabbing' : 'grab' }}
+          className="w-full h-full select-none"
+          style={{ minHeight: 'calc(100vh - 3.5rem)', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
           onMouseLeave={() => setHovered(null)}
           onMouseDown={handlePanStart}
           onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
         >
           <defs>
             <pattern id="dotGrid" width="28" height="28" patternUnits="userSpaceOnUse">

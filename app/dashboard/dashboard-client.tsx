@@ -51,6 +51,8 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
     return new Date()
   })
   const [sortBy, setSortBy] = useState<SortKey>('newest')
+  const [perPage, setPerPage] = useState<number | 'all'>(10)
+  const [currentPage, setCurrentPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [categoryUpdatingId, setCategoryUpdatingId] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -220,6 +222,22 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
     return list
   }, [notes, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy])
 
+  const perPageOptions = [1, 3, 5, 7, 10, 'all'] as const
+  const totalPages = perPage === 'all' ? 1 : Math.max(1, Math.ceil(filteredNotes.length / perPage))
+  const paginatedNotes = useMemo(() => {
+    if (perPage === 'all') return filteredNotes
+    const start = (currentPage - 1) * perPage
+    return filteredNotes.slice(start, start + perPage)
+  }, [filteredNotes, perPage, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [perPage, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy])
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages))
+  }, [currentPage, totalPages])
+
   useEffect(() => {
     const ch = supabaseRef.current.channel('notes-changes')
     ch.on(
@@ -378,20 +396,39 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="sort" className="text-sm text-[var(--foreground-subtle)]">
-                정렬
-              </label>
-              <select
-                id="sort"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortKey)}
-                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none"
-              >
-                <option value="newest">최신순</option>
-                <option value="oldest">오래된순</option>
-                <option value="title">제목순</option>
-              </select>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label htmlFor="perPage" className="text-sm text-[var(--foreground-subtle)]">
+                  보기
+                </label>
+                <select
+                  id="perPage"
+                  value={perPage}
+                  onChange={(e) => setPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none"
+                >
+                  {perPageOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt === 'all' ? '전체' : `${opt}개`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="sort" className="text-sm text-[var(--foreground-subtle)]">
+                  정렬
+                </label>
+                <select
+                  id="sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortKey)}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none"
+                >
+                  <option value="newest">최신순</option>
+                  <option value="oldest">오래된순</option>
+                  <option value="title">제목순</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -613,7 +650,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                   </div>
                 )}
                 <ul className="space-y-2">
-                  {filteredNotes.map((note) => {
+                  {paginatedNotes.map((note) => {
                     const isSelected = selectedNotes.has(note.id)
                     return (
                       <li key={note.id}>
@@ -738,6 +775,90 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                     )
                   })}
                 </ul>
+
+                {/* 페이지네이션 */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--border)] pt-6">
+                    <p className="text-sm text-[var(--foreground-subtle)]">
+                      {perPage === 'all'
+                        ? `전체 ${filteredNotes.length}개`
+                        : `${filteredNotes.length}개 중 ${(currentPage - 1) * (perPage as number) + 1}-${Math.min(currentPage * (perPage as number), filteredNotes.length)}번`}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage <= 1}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--surface)]"
+                        aria-label="이전 페이지"
+                      >
+                        이전
+                      </button>
+                      <div className="flex items-center gap-0.5">
+                        {(() => {
+                          const maxShowAll = 9
+                          if (totalPages <= maxShowAll) {
+                            return Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                              <button
+                                key={page}
+                                type="button"
+                                onClick={() => setCurrentPage(page)}
+                                className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                                  currentPage === page
+                                    ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                                }`}
+                                aria-label={`${page}페이지`}
+                              >
+                                {page}
+                              </button>
+                            ))
+                          }
+                          const left = Math.max(1, currentPage - 2)
+                          const right = Math.min(totalPages, currentPage + 2)
+                          const items: (number | 'ellipsis')[] = []
+                          if (left > 1) {
+                            items.push(1)
+                            if (left > 2) items.push('ellipsis')
+                          }
+                          for (let i = left; i <= right; i++) items.push(i)
+                          if (right < totalPages) {
+                            if (right < totalPages - 1) items.push('ellipsis')
+                            items.push(totalPages)
+                          }
+                          return items.map((page, idx) =>
+                            page === 'ellipsis' ? (
+                              <span key={`e-${idx}`} className="px-1.5 py-1.5 text-[var(--foreground-subtle)]">…</span>
+                            ) : (
+                              <button
+                                key={page}
+                                type="button"
+                                onClick={() => setCurrentPage(page)}
+                                className={`min-w-[2.25rem] rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                                  currentPage === page
+                                    ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                                }`}
+                                aria-label={`${page}페이지`}
+                              >
+                                {page}
+                              </button>
+                            )
+                          )
+                        })()}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage >= totalPages}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--surface)]"
+                        aria-label="다음 페이지"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
               )}
             </div>

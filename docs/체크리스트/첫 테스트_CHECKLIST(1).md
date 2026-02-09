@@ -1,6 +1,6 @@
 # 테스트 체크리스트
 
-이 문서는 Study Notes Summarizer 애플리케이션의 수동 테스트 가이드입니다.
+이 문서는 Study Notes Summarizer 애플리케이션의 첫 수동 테스트 확인 가이드입니다.
 
 ## 사전 준비사항
 

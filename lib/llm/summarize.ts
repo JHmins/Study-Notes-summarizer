@@ -121,7 +121,7 @@ async function summarizeWithGemini(text: string): Promise<string> {
   const apiVersion = process.env.GEMINI_API_VERSION || 'v1beta'
 
   // 첫 번째 모델 시도
-  let lastError: any = null
+  let lastError: unknown = null
   for (const tryModel of [model, ...availableModels.filter(m => m !== model)]) {
     try {
       const response = await fetch(
@@ -148,7 +148,7 @@ async function summarizeWithGemini(text: string): Promise<string> {
       )
 
       if (!response.ok) {
-        let error: any
+        let error: { error?: { code?: number; message?: string } } | { error: string }
         try {
           error = await response.json()
         } catch {
@@ -156,7 +156,7 @@ async function summarizeWithGemini(text: string): Promise<string> {
         }
         lastError = error
         // 404 오류면 다음 모델 시도
-        if (error?.error?.code === 404) {
+        if (error && typeof error === 'object' && 'error' in error && typeof error.error === 'object' && error.error?.code === 404) {
           continue
         }
         throw new Error(`Gemini API error: ${JSON.stringify(error)}`)
@@ -166,9 +166,9 @@ async function summarizeWithGemini(text: string): Promise<string> {
       const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
       if (!summary) throw new Error('Failed to generate summary from Gemini')
       return summary
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 404가 아니면 즉시 에러 throw
-      if (error.message && !error.message.includes('404')) {
+      if (error instanceof Error && !error.message.includes('404')) {
         throw error
       }
       lastError = error

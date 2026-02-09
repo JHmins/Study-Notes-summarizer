@@ -168,9 +168,10 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       setFormData({ title: '', url: '', description: '', category: '', note_id: '' })
       setIsAdding(false)
       refreshLinks()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Link save error:', error)
-      alert(error.message || '링크 저장에 실패했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '링크 저장에 실패했습니다.'
+      alert(errorMessage)
     }
   }
 
@@ -193,9 +194,10 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       const { error } = await supabase.from('study_links').delete().eq('id', id).eq('user_id', user.id)
       if (error) throw error
       refreshLinks()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Link delete error:', error)
-      alert(error.message || '링크 삭제에 실패했습니다.')
+      const errorMessage = error instanceof Error ? error.message : '링크 삭제에 실패했습니다.'
+      alert(errorMessage)
     }
   }
 

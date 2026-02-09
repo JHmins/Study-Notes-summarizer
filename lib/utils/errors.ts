@@ -43,3 +43,14 @@ export function getSupabaseErrorMessage(error: unknown): string {
   
   return '오류가 발생했습니다.'
 }
+
+/**
+ * 카테고리 관련 Supabase 에러를 사용자 친화적인 메시지로 변환
+ */
+export function getCategoryErrorMessage(err: { message?: string; code?: string } | null): string | null {
+  if (!err) return null
+  if (err.message?.includes('relation') || err.message?.includes('does not exist') || err.code === '42P01') {
+    return '카테고리 테이블이 없습니다. Supabase 대시보드 → SQL Editor에서 「카테고리_설정_가이드.md」에 안내된 SQL을 실행해 주세요.'
+  }
+  return err.message || '오류가 발생했습니다.'
+}

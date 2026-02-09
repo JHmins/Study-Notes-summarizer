@@ -161,7 +161,7 @@ export default function ProjectsClient({
   return (
     <div className="min-h-screen flex bg-[var(--background)]">
       <Sidebar
-        notes={notes as any}
+        notes={notes}
         categories={categories}
         selectedCategoryId={null}
         onSelectCategory={(id) => router.push(id ? `/dashboard?category=${id}` : '/dashboard')}

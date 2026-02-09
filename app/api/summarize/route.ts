@@ -78,10 +78,11 @@ export async function POST(request: NextRequest) {
       .eq('id', note.id)
 
     return NextResponse.json({ success: true, summary })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Summarization error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: errorMessage },
       { status: 500 }
     )
   }

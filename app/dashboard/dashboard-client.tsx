@@ -60,24 +60,23 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
   const [useFileSearch, setUseFileSearch] = useState(false)
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const STUDY_SESSION_KEY = 'studySessionStart'
-  const getSessionStart = () => {
-    if (typeof window === 'undefined') return Date.now()
-    const stored = sessionStorage.getItem(STUDY_SESSION_KEY)
-    if (stored) return parseInt(stored, 10)
-    const now = Date.now()
-    sessionStorage.setItem(STUDY_SESSION_KEY, String(now))
-    return now
-  }
-  const [visitSeconds, setVisitSeconds] = useState(() => Math.max(0, Math.floor((Date.now() - getSessionStart()) / 1000)))
+  const [visitSeconds, setVisitSeconds] = useState(0)
   const [linksCount, setLinksCount] = useState(initialLinksCount)
   const [projectsCount, setProjectsCount] = useState(initialProjectsCount)
-  const sessionStartRef = useRef<number>(getSessionStart())
+  const sessionStartRef = useRef<number>(0)
   const supabase = createClient()
   const supabaseRef = useRef(supabase)
   supabaseRef.current = supabase
 
-  // 공부 시간 타이머 (다른 페이지 갔다 와도 같은 탭에서는 계속 누적)
+  // 공부 시간 타이머 (클라이언트에서만 sessionStorage 읽기 — 서버/클라이언트 초기 렌더 일치로 hydration 에러 방지)
   useEffect(() => {
+    const getSessionStart = () => {
+      const stored = sessionStorage.getItem(STUDY_SESSION_KEY)
+      if (stored) return parseInt(stored, 10)
+      const now = Date.now()
+      sessionStorage.setItem(STUDY_SESSION_KEY, String(now))
+      return now
+    }
     sessionStartRef.current = getSessionStart()
     const tick = () => setVisitSeconds(Math.max(0, Math.floor((Date.now() - sessionStartRef.current) / 1000)))
     tick()
@@ -740,7 +739,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                                 }
                               }}
                               disabled={categoryUpdatingId === note.id}
-                              className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-60"
+                              className="max-w-[140px] min-w-0 truncate rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-60"
                               aria-label="카테고리 선택"
                             >
                               <option value="">미분류</option>

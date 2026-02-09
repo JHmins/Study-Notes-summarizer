@@ -117,7 +117,7 @@ export default function FileUpload({ onUploadComplete, defaultCategoryId = null,
           <select
             value={effectiveCategoryId ?? ''}
             onChange={(e) => setCategoryId(e.target.value || null)}
-            className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none"
+            className="max-w-[140px] min-w-0 truncate rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none"
           >
             <option value="">미분류</option>
             {categories.map((c) => (

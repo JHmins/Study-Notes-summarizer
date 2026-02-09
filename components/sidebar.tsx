@@ -33,7 +33,6 @@ interface SidebarProps {
   onMobileClose?: () => void
 }
 
-
 export default function Sidebar({
   notes,
   categories,
@@ -82,7 +81,7 @@ export default function Sidebar({
 
   const content = (
     <>
-      <div className="flex h-14 shrink-0 items-center justify-between px-5 lg:justify-start">
+      <div className="flex h-14 shrink-0 items-center justify-between pl-4 pr-0 lg:justify-start">
         <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline">
           <img 
             src={isDark ? "/logo-dark.png" : "/logo.png"} 
@@ -107,12 +106,12 @@ export default function Sidebar({
         )}
       </div>
 
-      <nav className="px-3 py-2">
+      <nav className="pl-3 pr-0 py-2">
         <div className="flex flex-col gap-1">
           <button
             type="button"
             onClick={() => { onMobileClose?.(); document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth' }); }}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-muted)]/50"
+            className="flex w-full items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-muted)]/50"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent)]">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -125,7 +124,7 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => { onFullNotesClick(); onMobileClose?.(); }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              className="flex w-full items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -138,7 +137,7 @@ export default function Sidebar({
             <Link
               href="/dashboard"
               onClick={onMobileClose}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -151,7 +150,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => { onSelectDate(today); onSelectCategory(null); onFilterStatusChange('all'); onMobileClose?.(); }}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -168,7 +167,7 @@ export default function Sidebar({
           <Link
             href="/dashboard/graph"
             onClick={onMobileClose}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -180,7 +179,7 @@ export default function Sidebar({
           <Link
             href="/dashboard/links"
             onClick={onMobileClose}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -192,7 +191,7 @@ export default function Sidebar({
           <Link
             href="/dashboard/projects"
             onClick={onMobileClose}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -214,7 +213,7 @@ export default function Sidebar({
         onMobileClose={onMobileClose}
       />
 
-      <div className="px-4 py-3">
+      <div className="pl-4 pr-0 py-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">
           통계
         </p>
@@ -224,7 +223,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="flex-shrink-0 px-3 pb-4">
+      <div className="flex-shrink-0 pl-3 pr-0 pb-4">
         <CalendarNotes
           notes={notes}
           selectedDate={selectedDate}
@@ -234,20 +233,20 @@ export default function Sidebar({
         />
       </div>
 
-      <div className="mt-auto px-4 py-3">
+      <div className="mt-auto pl-4 pr-0 py-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">
           최근 노트
         </p>
         <ul className="space-y-0.5">
           {recentNotes.length === 0 ? (
-            <li className="rounded-lg px-3 py-2 text-sm text-[var(--foreground-muted)]">아직 노트가 없어요.</li>
+            <li className="rounded-lg pl-3 pr-1 py-2 text-sm text-[var(--foreground-muted)]">아직 노트가 없어요.</li>
           ) : (
             recentNotes.map((note) => (
               <li key={note.id}>
                 <Link
                   href={`/dashboard/notes/${note.id}`}
                   onClick={onMobileClose}
-                  className="block truncate rounded-lg px-3 py-2 text-sm text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  className="block truncate rounded-lg pl-3 pr-1 py-2 text-sm text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >
                   {note.title || '제목 없음'}
                 </Link>

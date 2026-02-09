@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/utils/auth'
+import type { User } from '@supabase/supabase-js'
 import LinksClient from './links-client'
 
 export default async function LinksPage() {
@@ -59,12 +60,15 @@ export default async function LinksPage() {
     }
 
     const userIsAdmin = isAdmin(user?.email)
+    if (!user) {
+      redirect('/auth/login')
+    }
     return (
       <LinksClient
         initialLinks={links}
         initialCategories={categories}
         initialNotes={notes}
-        user={user ?? ({ id: 'anonymous', email: 'anonymous@local.dev' } as any)}
+        user={user as User}
         isAdmin={userIsAdmin}
       />
     )

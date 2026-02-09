@@ -26,12 +26,12 @@ export default async function LinksPage() {
     }
 
     const userId = user.id
-    const [linksResult, categoriesResult, notesResult] = await Promise.allSettled([
+    const [linksResult, categoriesResult, notesResult, groupsResult, subgroupsResult] = await Promise.allSettled([
       supabase
         .from('study_links')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: true }),
       supabase
         .from('categories')
         .select('*')
@@ -43,11 +43,25 @@ export default async function LinksPage() {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('link_groups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('link_subgroups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
     ])
 
     const links = linksResult.status === 'fulfilled' ? (linksResult.value.data ?? []) : []
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
     const notes = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const groups = groupsResult.status === 'fulfilled' ? (groupsResult.value.data ?? []) : []
+    const subgroups = subgroupsResult.status === 'fulfilled' ? (subgroupsResult.value.data ?? []) : []
 
     if (linksResult.status === 'rejected') {
       console.error('Links fetch error:', linksResult.reason)
@@ -57,6 +71,12 @@ export default async function LinksPage() {
     }
     if (notesResult.status === 'rejected') {
       console.error('Notes fetch error:', notesResult.reason)
+    }
+    if (groupsResult.status === 'rejected') {
+      console.error('Link groups fetch error:', groupsResult.reason)
+    }
+    if (subgroupsResult.status === 'rejected') {
+      console.error('Link subgroups fetch error:', subgroupsResult.reason)
     }
 
     const userIsAdmin = isAdmin(user?.email)
@@ -68,6 +88,8 @@ export default async function LinksPage() {
         initialLinks={links}
         initialCategories={categories}
         initialNotes={notes}
+        initialGroups={groups}
+        initialSubgroups={subgroups}
         user={user as User}
         isAdmin={userIsAdmin}
       />

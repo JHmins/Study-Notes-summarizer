@@ -43,12 +43,31 @@ export interface ProjectFile {
   created_at: string
 }
 
+export interface LinkGroup {
+  id: string
+  user_id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
+export interface LinkSubgroup {
+  id: string
+  group_id: string
+  user_id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
 export interface StudyLink {
   id: string
   title: string
   url: string
   description?: string | null
-  category?: string | null
+  category?: string | null // 레거시 필드 (하위 호환성 유지)
+  group_id?: string | null
+  subgroup_id?: string | null
   note_id?: string | null
   created_at: string
   updated_at: string

@@ -54,12 +54,24 @@ export default function CompareClient({
   }
 
   const refreshNotes = async () => {
-    const { data } = await supabase
+    const { data: notesData } = await supabase
       .from('notes')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-    if (data) setNotes(data)
+    if (!notesData?.length) {
+      setNotes(notesData ?? [])
+      return
+    }
+    const noteIds = notesData.map((n) => n.id)
+    const { data: nc } = await supabase.from('note_categories').select('note_id, category_id').in('note_id', noteIds)
+    const merged = notesData.map((n) => ({
+      ...n,
+      category_ids: (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id).length > 0
+        ? (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id)
+        : (n.category_id ? [n.category_id] : []),
+    }))
+    setNotes(merged)
   }
 
   useEffect(() => {
@@ -93,16 +105,31 @@ export default function CompareClient({
         () => refreshNotes()
       )
       .subscribe()
+    const noteCategoriesChannel = supabase
+      .channel('compare-note-categories')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'note_categories' },
+        () => refreshNotes()
+      )
+      .subscribe()
     return () => {
       supabase.removeChannel(categoriesChannel)
       supabase.removeChannel(notesChannel)
+      supabase.removeChannel(noteCategoriesChannel)
     }
   }, [userId])
 
-  // 카테고리 이름 찾기
+  // 카테고리 이름 찾기 (단일 ID)
   const getCategoryName = (categoryId: string | null | undefined) => {
     if (!categoryId) return null
     return categories.find((c) => c.id === categoryId)?.name || null
+  }
+  // 여러 카테고리 이름 (category_ids 반영)
+  const getCategoryNames = (note: { category_ids?: string[]; category_id?: string | null }) => {
+    const ids = note.category_ids ?? (note.category_id ? [note.category_id] : [])
+    if (ids.length === 0) return null
+    return ids.map((id) => categories.find((c) => c.id === id)?.name).filter(Boolean).join(', ') || null
   }
 
   return (
@@ -186,8 +213,8 @@ export default function CompareClient({
                 </div>
                 <div className="flex items-center gap-3 text-xs text-[var(--foreground-subtle)]">
                   <span>{format(new Date(note1.created_at), 'yyyy.M.d HH:mm', { locale: ko })}</span>
-                  {getCategoryName(note1.category_id) && (
-                    <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5">{getCategoryName(note1.category_id)}</span>
+                  {getCategoryNames(note1) && (
+                    <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5">{getCategoryNames(note1)}</span>
                   )}
                 </div>
               </div>
@@ -255,8 +282,8 @@ export default function CompareClient({
                 </div>
                 <div className="flex items-center gap-3 text-xs text-[var(--foreground-subtle)]">
                   <span>{format(new Date(note2.created_at), 'yyyy.M.d HH:mm', { locale: ko })}</span>
-                  {getCategoryName(note2.category_id) && (
-                    <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5">{getCategoryName(note2.category_id)}</span>
+                  {getCategoryNames(note2) && (
+                    <span className="rounded-full bg-[var(--surface-hover)] px-2 py-0.5">{getCategoryNames(note2)}</span>
                   )}
                 </div>
               </div>

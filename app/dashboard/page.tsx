@@ -31,14 +31,20 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     }
 
     const userId = user.id
-    const [notesResult, categoriesResult, linksResult, projectsResult] = await Promise.allSettled([
+    const [notesResult, categoriesResult, noteCategoriesResult, linksResult, projectsResult] = await Promise.allSettled([
       supabase.from('notes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
       supabase.from('categories').select('*').eq('user_id', userId).order('sort_order', { ascending: true }).order('created_at', { ascending: true }),
+      supabase.from('note_categories').select('note_id, category_id'),
       supabase.from('study_links').select('*', { count: 'exact', head: true }).eq('user_id', userId),
       supabase.from('projects').select('*', { count: 'exact', head: true }).eq('user_id', userId),
     ])
 
-    const notes = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const notesRaw = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
+    const notes = notesRaw.map((n: { id: string; category_id?: string | null; [k: string]: unknown }) => {
+      const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+    })
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
     const linksCount = linksResult.status === 'fulfilled' && linksResult.value.count != null ? linksResult.value.count : 0
     const projectsCount = projectsResult.status === 'fulfilled' && projectsResult.value.count != null ? projectsResult.value.count : 0

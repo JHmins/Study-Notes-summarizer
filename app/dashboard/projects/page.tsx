@@ -25,7 +25,7 @@ export default async function ProjectsPage() {
       }
     }
 
-    const [projectsResult, notesResult, categoriesResult] = await Promise.all([
+    const [projectsResult, notesResult, noteCategoriesResult, categoriesResult] = await Promise.all([
       supabase
         .from('projects')
         .select('*')
@@ -36,6 +36,7 @@ export default async function ProjectsPage() {
         .select('id, title, created_at, category_id, status')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false }),
+      supabase.from('note_categories').select('note_id, category_id'),
       supabase
         .from('categories')
         .select('*')
@@ -45,7 +46,12 @@ export default async function ProjectsPage() {
     ])
 
     const projects = projectsResult.data ?? []
-    const notes = notesResult.data ?? []
+    const notesRaw = notesResult.data ?? []
+    const noteCategories = noteCategoriesResult.data ?? []
+    const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+      const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+    })
     const categories = categoriesResult.data ?? []
     const userIsAdmin = isAdmin(user.email)
 

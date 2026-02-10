@@ -26,7 +26,7 @@ export default async function LinksPage() {
     }
 
     const userId = user.id
-    const [linksResult, categoriesResult, notesResult, groupsResult, subgroupsResult] = await Promise.allSettled([
+    const [linksResult, categoriesResult, notesResult, noteCategoriesResult, groupsResult, subgroupsResult] = await Promise.allSettled([
       supabase
         .from('study_links')
         .select('*')
@@ -43,6 +43,7 @@ export default async function LinksPage() {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false }),
+      supabase.from('note_categories').select('note_id, category_id'),
       supabase
         .from('link_groups')
         .select('*')
@@ -59,7 +60,12 @@ export default async function LinksPage() {
 
     const links = linksResult.status === 'fulfilled' ? (linksResult.value.data ?? []) : []
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
-    const notes = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const notesRaw = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
+    const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+      const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+    })
     const groups = groupsResult.status === 'fulfilled' ? (groupsResult.value.data ?? []) : []
     const subgroups = subgroupsResult.status === 'fulfilled' ? (subgroupsResult.value.data ?? []) : []
 

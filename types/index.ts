@@ -13,6 +13,8 @@ export interface Note {
   updated_at?: string
   file_path?: string
   category_id?: string | null
+  /** 노트가 속한 카테고리 ID 목록 (다대다). 없으면 기존 category_id 또는 [] 사용 */
+  category_ids?: string[]
   project_id?: string | null
   is_favorite?: boolean
 }

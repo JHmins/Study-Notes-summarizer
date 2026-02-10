@@ -77,6 +77,20 @@ export default function GraphViewClient({
     return () => window.removeEventListener('focus', onFocus)
   }, [router])
 
+  useEffect(() => {
+    const noteCategoriesChannel = supabase
+      .channel('graph-note-categories')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'note_categories' },
+        () => router.refresh()
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(noteCategoriesChannel)
+    }
+  }, [router])
+
   const handlePanStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as Element).closest?.('[data-graph-no-pan]')) return
     e.preventDefault()
@@ -164,8 +178,8 @@ export default function GraphViewClient({
 
   const { categoryNodes, dateNodes, wordNodes, noteNodes, links } = useMemo(() => {
     const catList = categories as Category[]
-    const uncategorized = notes.filter((n) => !n.category_id)
-    const noteList = notes as Note[]
+    const noteList = notes as (Note & { category_ids?: string[] })[]
+    const uncategorized = noteList.filter((n) => (n.category_ids ?? (n.category_id ? [n.category_id] : [])).length === 0)
     const nCat = Math.max(1, catList.length + (uncategorized.length ? 1 : 0))
     const dates = dateKeys.length ? dateKeys : (() => {
       const set = new Set<string>()
@@ -213,11 +227,12 @@ export default function GraphViewClient({
     const links: { from: [number, number]; to: [number, number]; key: string; categoryId?: string }[] = []
 
     noteList.forEach((note) => {
-      const catId = note.category_id ?? '_none'
-      const catPos = getCatPos(note.category_id ?? null)
+      const primaryCatId = (note.category_ids && note.category_ids[0]) ?? note.category_id ?? null
+      const catId = primaryCatId ?? '_none'
+      const catPos = getCatPos(primaryCatId)
       const catNode = categoryNodes.find((n) => n.id === catId)
-      const countInCat = noteList.filter((n) => (n.category_id ?? '_none') === catId).length
-      const j = noteList.filter((n) => (n.category_id ?? '_none') === catId).findIndex((n) => n.id === note.id)
+      const countInCat = noteList.filter((n) => ((n.category_ids && n.category_ids[0]) ?? n.category_id ?? '_none') === catId).length
+      const j = noteList.filter((n) => ((n.category_ids && n.category_ids[0]) ?? n.category_id ?? '_none') === catId).findIndex((n) => n.id === note.id)
       const theta = catNode ? (catNode.index / nCat) * Math.PI * 2 - Math.PI / 2 : 0
       const noteAngle = theta + (j - (countInCat - 1) / 2) * 0.4
       const p = polar(NOTE_ORBIT, noteAngle)
@@ -230,7 +245,7 @@ export default function GraphViewClient({
         title: note.title,
         x: nx,
         y: ny,
-        categoryId: note.category_id ?? null,
+        categoryId: primaryCatId,
         created_at: note.created_at,
         dateKey,
       })

@@ -61,12 +61,24 @@ export default function ProjectsClient({
   }, [user.id])
 
   const refreshNotes = useCallback(async () => {
-    const { data } = await supabase
+    const { data: notesData } = await supabase
       .from('notes')
       .select('id, title, created_at, category_id, status')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    if (data) setNotes(data as SidebarNote[])
+    if (!notesData?.length) {
+      setNotes((notesData ?? []) as SidebarNote[])
+      return
+    }
+    const noteIds = notesData.map((n) => n.id)
+    const { data: nc } = await supabase.from('note_categories').select('note_id, category_id').in('note_id', noteIds)
+    const merged = notesData.map((n) => ({
+      ...n,
+      category_ids: (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id).length > 0
+        ? (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id)
+        : (n.category_id ? [n.category_id] : []),
+    }))
+    setNotes(merged as SidebarNote[])
   }, [user.id])
 
   const refreshCategories = useCallback(async () => {
@@ -104,10 +116,28 @@ export default function ProjectsClient({
         () => { refreshProjects() }
       )
       .subscribe()
+    const noteCategoriesChannel = supabase
+      .channel(`note-categories-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'note_categories' },
+        () => { refreshNotes() }
+      )
+      .subscribe()
+    const categoriesChannel = supabase
+      .channel(`categories-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
+        () => { refreshCategories() }
+      )
+      .subscribe()
     return () => {
       supabase.removeChannel(channel)
+      supabase.removeChannel(noteCategoriesChannel)
+      supabase.removeChannel(categoriesChannel)
     }
-  }, [user.id, refreshProjects])
+  }, [user.id, refreshProjects, refreshNotes, refreshCategories])
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()

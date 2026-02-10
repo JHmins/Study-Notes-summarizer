@@ -76,12 +76,24 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
   }
 
   const refreshNotes = async () => {
-    const { data } = await supabase
+    const { data: notesData } = await supabase
       .from('notes')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    if (data) setNotes(data)
+    if (!notesData?.length) {
+      setNotes(notesData ?? [])
+      return
+    }
+    const noteIds = notesData.map((n) => n.id)
+    const { data: nc } = await supabase.from('note_categories').select('note_id, category_id').in('note_id', noteIds)
+    const merged = notesData.map((n) => ({
+      ...n,
+      category_ids: (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id).length > 0
+        ? (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id)
+        : (n.category_id ? [n.category_id] : []),
+    }))
+    setNotes(merged)
   }
 
   const refreshGroups = async () => {
@@ -112,15 +124,21 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
     setSubgroups(initialSubgroups)
   }, [initialLinks, initialCategories, initialNotes, initialGroups, initialSubgroups])
 
-  // 사이드바 "수업 자료" 클릭 시(?reset=1) 모든 그룹·소그룹·링크 펼침 초기화
+  // 사이드바 "수업 자료" 클릭 시(?reset=1) 모든 그룹·소그룹·링크 펼침 초기화 및 폼 닫기
   useEffect(() => {
     if (searchParams.get('reset') === '1') {
       setExpandedGroups(new Set())
       setExpandedSubgroups(new Set())
       setExpandedLinks(new Set())
+      // 링크 추가/수정 중이면 폼 닫고 초기화
+      if (isAdding || editingId) {
+        setIsAdding(false)
+        setEditingId(null)
+        setFormData({ title: '', url: '', description: '', group_name: '', subgroup_name: '', note_id: '' })
+      }
       router.replace('/dashboard/links', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, isAdding, editingId])
 
   useEffect(() => {
     const onFocus = () => {
@@ -162,6 +180,15 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       )
       .subscribe()
 
+    const noteCategoriesChannel = supabase
+      .channel('note-categories-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'note_categories' },
+        () => refreshNotes()
+      )
+      .subscribe()
+
     const groupsChannel = supabase
       .channel('link-groups-changes')
       .on(
@@ -184,15 +211,22 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       supabase.removeChannel(linksChannel)
       supabase.removeChannel(categoriesChannel)
       supabase.removeChannel(notesChannel)
+      supabase.removeChannel(noteCategoriesChannel)
       supabase.removeChannel(groupsChannel)
       supabase.removeChannel(subgroupsChannel)
     }
   }, [user.id])
 
-  // 카테고리별 노트 개수 계산
+  // 카테고리별 노트 개수 계산 (다대다: 노트가 여러 카테고리에 속할 수 있음)
   const notesCountByCategory = notes.reduce<Record<string, number>>((acc, n) => {
-    const id = n.category_id ?? '_none'
-    acc[id] = (acc[id] ?? 0) + 1
+    const ids = n.category_ids ?? (n.category_id ? [n.category_id] : [])
+    if (ids.length === 0) {
+      acc['_none'] = (acc['_none'] ?? 0) + 1
+    } else {
+      ids.forEach((id) => {
+        acc[id] = (acc[id] ?? 0) + 1
+      })
+    }
     return acc
   }, {})
 
@@ -355,6 +389,19 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
     setIsAdding(false)
     setEditingId(null)
     setFormData({ title: '', url: '', description: '', group_name: '', subgroup_name: '', note_id: '' })
+  }
+
+  /** 링크 추가 클릭: 수정 중이면 저장 없이 취소하고, 새 링크 추가 폼 표시 */
+  const handleAddLinkClick = () => {
+    if (editingId) {
+      setEditingId(null)
+      setFormData({ title: '', url: '', description: '', group_name: '', subgroup_name: '', note_id: '' })
+    }
+    setIsAdding(true)
+    setTimeout(() => {
+      const formElement = document.getElementById('link-edit-form')
+      if (formElement) formElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
   }
 
   // 그룹 이름 수정 시작
@@ -551,6 +598,14 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
         onCalendarMonthChange={() => {}}
         filterStatus="all"
         onFilterStatusChange={() => {}}
+        onLinksClick={() => {
+          // 링크 추가/수정 중이면 폼 닫고 초기화
+          if (isAdding || editingId) {
+            setIsAdding(false)
+            setEditingId(null)
+            setFormData({ title: '', url: '', description: '', group_name: '', subgroup_name: '', note_id: '' })
+          }
+        }}
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}
       />
@@ -601,15 +656,13 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
         <main className="flex-1 overflow-auto px-4 py-6 sm:px-6">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-[var(--foreground)]">수업 자료</h1>
-            {!isAdding && (
-              <button
-                type="button"
-                onClick={() => setIsAdding(true)}
-                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-              >
-                링크 추가
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleAddLinkClick}
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
+            >
+              링크 추가
+            </button>
           </div>
 
           {isAdding && (

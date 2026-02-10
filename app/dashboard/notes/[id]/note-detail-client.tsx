@@ -91,6 +91,31 @@ export default function NoteDetailClient({
     }
   }, [note.id])
 
+  // note_categories 변경 감지 (카테고리 추가/제거 시 자동 반영)
+  useEffect(() => {
+    const ncChannel = supabase
+      .channel(`note-categories-${note.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'note_categories',
+          filter: `note_id=eq.${note.id}`,
+        },
+        async () => {
+          const { data: nc } = await supabase.from('note_categories').select('category_id').eq('note_id', note.id)
+          const ids = (nc ?? []).map((r) => r.category_id)
+          setCurrentNote((n) => ({ ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []), category_id: ids[0] ?? n.category_id ?? null }))
+          router.refresh()
+        }
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(ncChannel)
+    }
+  }, [note.id, router])
+
   const handleTitleSave = async () => {
     const v = titleValue.trim()
     if (!v) return
@@ -140,17 +165,21 @@ export default function NoteDetailClient({
     }
   }
 
-  const handleCategoryChange = async (categoryId: string | null) => {
+  const handleCategoryIdsChange = async (nextIds: string[]) => {
     setSavingCategory(true)
-    const { error } = await supabase
-      .from('notes')
-      .update({ category_id: categoryId || null })
-      .eq('id', note.id)
-    if (!error) {
-      setCurrentNote((n) => ({ ...n, category_id: categoryId ?? null }))
-      router.refresh()
-    }
+    const res = await fetch(`/api/notes/${note.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category_ids: nextIds }),
+    })
     setSavingCategory(false)
+    if (res.ok) {
+      setCurrentNote((n) => ({ ...n, category_ids: nextIds, category_id: nextIds[0] ?? null }))
+      router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || '카테고리 변경에 실패했습니다.')
+    }
   }
 
   const handleProjectChange = async (projectId: string | null) => {
@@ -331,16 +360,49 @@ export default function NoteDetailClient({
                   ` · 수정 ${format(new Date(currentNote.updated_at ?? currentNote.created_at), 'yyyy.M.d HH:mm', { locale: ko })}`}
               </p>
               {categories.length > 0 && (
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <span className="text-sm text-[var(--foreground-muted)]">카테고리</span>
+                  {(currentNote.category_ids ?? (currentNote.category_id ? [currentNote.category_id] : [])).map((cid) => {
+                    const cat = categories.find((c) => c.id === cid)
+                    return (
+                      <span
+                        key={cid}
+                        className="inline-flex items-center gap-1 rounded-md bg-[var(--accent-muted)] px-2 py-1 text-sm text-[var(--accent)]"
+                      >
+                        {cat?.name ?? cid}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = currentNote.category_ids ?? (currentNote.category_id ? [currentNote.category_id] : [])
+                            handleCategoryIdsChange(current.filter((id) => id !== cid))
+                          }}
+                          disabled={savingCategory}
+                          className="rounded p-0.5 hover:bg-[var(--accent)]/20 disabled:opacity-50"
+                          aria-label={`${cat?.name ?? cid} 제거`}
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    )
+                  })}
                   <select
-                    value={currentNote.category_id ?? ''}
-                    onChange={(e) => handleCategoryChange(e.target.value || null)}
+                    value=""
+                    onChange={(e) => {
+                      const addId = e.target.value
+                      if (!addId) return
+                      e.target.value = ''
+                      const current = currentNote.category_ids ?? (currentNote.category_id ? [currentNote.category_id] : [])
+                      if (current.includes(addId)) return
+                      handleCategoryIdsChange([...current, addId])
+                    }}
                     disabled={savingCategory}
-                    className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-50"
+                    className="rounded border border-dashed border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm text-[var(--foreground-muted)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-50"
+                    aria-label="카테고리 추가"
                   >
-                    <option value="">미분류</option>
-                    {categories.map((c) => (
+                    <option value="">+ 카테고리 추가</option>
+                    {categories.filter((c) => !(currentNote.category_ids ?? (currentNote.category_id ? [currentNote.category_id] : [])).includes(c.id)).map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>

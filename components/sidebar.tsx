@@ -12,6 +12,7 @@ import SidebarCategories from './sidebar-categories'
 export interface SidebarNote extends NoteForCalendar {
   status: string
   category_id?: string | null
+  category_ids?: string[]
   is_favorite?: boolean
 }
 
@@ -30,6 +31,8 @@ interface SidebarProps {
   onFilterStatusChange: (status: string) => void
   /** 대시보드에서만 전달: 전체 노트 클릭 시 필터 해제 후 이동 */
   onFullNotesClick?: () => void
+  /** 수업 자료 페이지에서 전달: 수업 자료 링크 클릭 시 실행할 함수 (폼 닫기 등) */
+  onLinksClick?: () => void
   mobileOpen?: boolean
   onMobileClose?: () => void
 }
@@ -48,6 +51,7 @@ export default function Sidebar({
   filterStatus,
   onFilterStatusChange,
   onFullNotesClick,
+  onLinksClick,
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
@@ -62,8 +66,14 @@ export default function Sidebar({
   ).length
 
   const notesCountByCategory = notes.reduce<Record<string, number>>((acc, n) => {
-    const id = n.category_id ?? '_none'
-    acc[id] = (acc[id] ?? 0) + 1
+    const ids = n.category_ids ?? (n.category_id ? [n.category_id] : [])
+    if (ids.length === 0) {
+      acc['_none'] = (acc['_none'] ?? 0) + 1
+    } else {
+      ids.forEach((id) => {
+        acc[id] = (acc[id] ?? 0) + 1
+      })
+    }
     return acc
   }, {})
   const favoritesCount = notes.filter((n) => n.is_favorite).length
@@ -181,7 +191,10 @@ export default function Sidebar({
           </Link>
           <Link
             href="/dashboard/links?reset=1"
-            onClick={onMobileClose}
+            onClick={(e) => {
+              onLinksClick?.()
+              onMobileClose?.()
+            }}
             className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">

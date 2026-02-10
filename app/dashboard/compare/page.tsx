@@ -82,7 +82,7 @@ export default async function ComparePage({ searchParams }: PageProps) {
     console.error('Failed to download files:', err)
   }
 
-  const [categoriesResult, notesResult] = await Promise.allSettled([
+  const [categoriesResult, notesResult, noteCategoriesResult, nc1Result, nc2Result] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
@@ -94,16 +94,31 @@ export default async function ComparePage({ searchParams }: PageProps) {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false }),
+    adminClient.from('note_categories').select('note_id, category_id'),
+    adminClient.from('note_categories').select('category_id').eq('note_id', id1),
+    adminClient.from('note_categories').select('category_id').eq('note_id', id2),
   ])
 
-  const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
-  const notes = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+  const categories = categoriesResult.data ?? []
+  const notesRaw = notesResult.data ?? []
+  const noteCategoriesList = (noteCategoriesResult.data ?? []) as { note_id: string; category_id: string }[]
+  const nc1 = (nc1Result.data ?? []) as { category_id: string }[]
+  const nc2 = (nc2Result.data ?? []) as { category_id: string }[]
+  const note1CategoryIds = nc1.map((r) => r.category_id)
+  const note2CategoryIds = nc2.map((r) => r.category_id)
+  const note1WithCategories = { ...note1, category_ids: note1CategoryIds.length > 0 ? note1CategoryIds : (note1.category_id ? [note1.category_id] : []) }
+  const note2WithCategories = { ...note2, category_ids: note2CategoryIds.length > 0 ? note2CategoryIds : (note2.category_id ? [note2.category_id] : []) }
+
+  const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+    const ids = noteCategoriesList.filter((nc) => nc.note_id === n.id).map((nc) => nc.category_id)
+    return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+  })
 
   const userIsAdmin = isAdmin(user?.email)
   return (
     <CompareClient
-      note1={note1}
-      note2={note2}
+      note1={note1WithCategories}
+      note2={note2WithCategories}
       fileContent1={fileContent1}
       fileContent2={fileContent2}
       userEmail={user?.email ?? ''}

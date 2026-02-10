@@ -46,6 +46,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const [
     { data: projectFiles },
     notesResult,
+    noteCategoriesResult,
     categoriesResult,
     { data: linkedNotes },
   ] = await Promise.all([
@@ -59,6 +60,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       .select('id, title, created_at, category_id, status, project_id')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
+    supabase.from('note_categories').select('note_id, category_id'),
     supabase
       .from('categories')
       .select('*')
@@ -73,7 +75,12 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       .order('created_at', { ascending: false }),
   ])
 
-  const notes = notesResult.data ?? []
+  const noteCategories = noteCategoriesResult.data ?? []
+  const notesRaw = notesResult.data ?? []
+  const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+    const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+    return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+  })
   const categories = categoriesResult.data ?? []
   const linkedNotesList = linkedNotes ?? []
   const userIsAdmin = isAdmin(user.email)

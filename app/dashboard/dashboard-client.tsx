@@ -177,12 +177,27 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
   }
 
   const refreshNotes = useCallback(async () => {
-    const { data } = await supabaseRef.current.from('notes').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    if (data) setNotes(data)
+    const { data: notesData } = await supabaseRef.current.from('notes').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+    if (!notesData?.length) {
+      setNotes(notesData ?? [])
+      return
+    }
+    const noteIds = notesData.map((n) => n.id)
+    const { data: nc } = await supabaseRef.current.from('note_categories').select('note_id, category_id').in('note_id', noteIds)
+    const merged = notesData.map((n) => ({
+      ...n,
+      category_ids: (nc ?? []).filter((x) => x.note_id === n.id).map((x) => x.category_id),
+    }))
+    setNotes(merged)
   }, [user.id])
 
   const refreshCategories = useCallback(async () => {
-    const { data } = await supabaseRef.current.from('categories').select('*').eq('user_id', user.id).order('sort_order').order('created_at')
+    const { data } = await supabaseRef.current
+      .from('categories')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
     if (data) setCategories(data)
   }, [user.id])
 
@@ -214,14 +229,15 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
       const matchesStatus = filterStatus === 'all' || note.status === filterStatus
       const matchesDate =
         !selectedDate || isSameDay(startOfDay(parseISO(note.created_at)), selectedDate)
+      const noteCategoryIds = note.category_ids ?? (note.category_id ? [note.category_id] : [])
       const matchesCategory =
         selectedCategoryId === null
           ? true
           : selectedCategoryId === '_favorites'
             ? !!note.is_favorite
             : selectedCategoryId === '_none'
-              ? (note.category_id ?? null) === null
-              : (note.category_id ?? null) === selectedCategoryId
+              ? noteCategoryIds.length === 0
+              : noteCategoryIds.includes(selectedCategoryId)
       const matchesFavorite = !showFavoritesOnly || !!note.is_favorite
       return matchesSearch && matchesStatus && matchesDate && matchesCategory && matchesFavorite
     })
@@ -261,9 +277,26 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
       { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` },
       () => refreshNotes()
     )
+    ch.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'note_categories' },
+      () => refreshNotes()
+    )
     ch.subscribe()
     return () => { supabaseRef.current.removeChannel(ch) }
   }, [user.id, refreshNotes])
+
+  useEffect(() => {
+    const categoriesChannel = supabaseRef.current
+      .channel('categories-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
+        () => refreshCategories()
+      )
+      .subscribe()
+    return () => { supabaseRef.current.removeChannel(categoriesChannel) }
+  }, [user.id, refreshCategories])
 
   return (
     <div className="min-h-screen flex bg-[var(--background)]">
@@ -693,11 +726,11 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                     const isSelected = selectedNotes.has(note.id)
                     return (
                       <li key={note.id}>
-                        <div className={`group flex items-start gap-2 rounded-xl border ${
+                        <div className={`group flex items-center gap-3 rounded-xl border ${
                           isSelected ? 'border-[var(--accent)] bg-[var(--accent-muted)]/20' : 'border-[var(--border)] bg-[var(--surface)]'
                         } p-4 shadow-card transition-shadow hover:border-[var(--border-focus)] hover:shadow-card-hover sm:p-5`}>
                           <label
-                            className={`mt-1 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 transition-[border-color,background-color,box-shadow] duration-200 focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--surface)] ${
+                            className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 transition-[border-color,background-color,box-shadow] duration-200 focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--surface)] ${
                               isSelected
                                 ? 'border-[var(--accent)] bg-[var(--accent)]'
                                 : 'border-[var(--border)] bg-transparent hover:border-[var(--foreground-subtle)]'
@@ -733,7 +766,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                             href={`/dashboard/notes/${note.id}`}
                             className="min-w-0 flex-1"
                           >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div className="min-w-0 flex-1">
                                 <h3 className="truncate text-base font-semibold text-[var(--foreground)] group-hover:text-[var(--accent)] sm:text-lg">
                                   {note.title}
@@ -749,14 +782,14 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                                 )}
                               </div>
                               <span
-                                className={`shrink-0 self-start rounded-full px-2.5 py-1 text-xs font-medium ${NOTE_STATUS_CONFIG[note.status].className}`}
+                                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${NOTE_STATUS_CONFIG[note.status].className}`}
                               >
                                 {NOTE_STATUS_CONFIG[note.status].label}
                               </span>
                             </div>
                           </Link>
                           <div
-                            className="shrink-0 flex items-center gap-1"
+                            className="flex shrink-0 items-center gap-2"
                             onClick={(e) => e.preventDefault()}
                           >
                             <button
@@ -778,7 +811,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                                 }
                               }}
                               disabled={favoriteUpdatingId === note.id}
-                              className={`shrink-0 rounded p-2 transition-colors disabled:opacity-60 ${
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-60 ${
                                 note.is_favorite
                                   ? 'text-amber-500 hover:bg-amber-500/10'
                                   : 'text-[var(--foreground-subtle)] hover:bg-[var(--surface-hover)] hover:text-amber-500/80'
@@ -790,56 +823,105 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                               </svg>
                             </button>
-                            <select
-                              value={note.category_id ?? ''}
-                              onChange={async (e) => {
-                                const next = e.target.value === '' ? null : e.target.value
-                                if ((note.category_id ?? null) === next) return
-                                setCategoryUpdatingId(note.id)
-                                const res = await fetch(`/api/notes/${note.id}`, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ category_id: next }),
-                                })
-                                setCategoryUpdatingId(null)
-                                if (res.ok) {
-                                  refreshNotes()
-                                } else {
+                            <div className="flex min-w-0 max-w-[220px] flex-wrap items-center gap-1.5">
+                              {(note.category_ids ?? (note.category_id ? [note.category_id] : [])).map((cid) => {
+                                const cat = categories.find((c) => c.id === cid)
+                                return (
+                                  <span
+                                    key={cid}
+                                    className="inline-flex items-center gap-0.5 rounded-md bg-[var(--accent-muted)] px-1.5 py-0.5 text-xs text-[var(--accent)]"
+                                    title={cat?.name ?? cid}
+                                  >
+                                    <span className="truncate max-w-[80px]">{cat?.name ?? cid}</span>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const current = note.category_ids ?? (note.category_id ? [note.category_id] : [])
+                                        const next = current.filter((id) => id !== cid)
+                                        setCategoryUpdatingId(note.id)
+                                        setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, category_ids: next } : n)))
+                                        const res = await fetch(`/api/notes/${note.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ category_ids: next }),
+                                        })
+                                        setCategoryUpdatingId(null)
+                                        if (!res.ok) {
+                                          setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, category_ids: current } : n)))
+                                          const data = await res.json().catch(() => ({}))
+                                          alert(data.error || '카테고리 제거에 실패했습니다.')
+                                        } else {
+                                          refreshNotes()
+                                        }
+                                      }}
+                                      disabled={categoryUpdatingId === note.id}
+                                      className="rounded p-0.5 hover:bg-[var(--accent)]/20 disabled:opacity-50"
+                                      aria-label={`${cat?.name ?? cid} 제거`}
+                                    >
+                                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </span>
+                                )
+                              })}
+                              {categories.length > 0 && (
+                                <select
+                                  value=""
+                                  onChange={async (e) => {
+                                    const addId = e.target.value
+                                    if (!addId) return
+                                    e.target.value = ''
+                                    const current = note.category_ids ?? (note.category_id ? [note.category_id] : [])
+                                    if (current.includes(addId)) return
+                                    const next = [...current, addId]
+                                    setCategoryUpdatingId(note.id)
+                                    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, category_ids: next } : n)))
+                                    const res = await fetch(`/api/notes/${note.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ category_ids: next }),
+                                    })
+                                    setCategoryUpdatingId(null)
+                                    if (!res.ok) {
+                                      setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, category_ids: current } : n)))
+                                      const data = await res.json().catch(() => ({}))
+                                      alert(data.error || '카테고리 추가에 실패했습니다.')
+                                    } else {
+                                      refreshNotes()
+                                    }
+                                  }}
+                                  disabled={categoryUpdatingId === note.id}
+                                  className="max-w-[100px] min-w-0 truncate rounded border border-dashed border-[var(--border)] bg-transparent px-1.5 py-0.5 text-xs text-[var(--foreground-muted)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-60"
+                                  aria-label="카테고리 추가"
+                                >
+                                  <option value="">+ 추가</option>
+                                  {categories.filter((c) => !(note.category_ids ?? (note.category_id ? [note.category_id] : [])).includes(c.id)).map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.preventDefault()
+                                if (!confirm('이 노트를 삭제할까요?')) return
+                                const res = await fetch(`/api/notes/${note.id}`, { method: 'DELETE' })
+                                if (res.ok) refreshNotes()
+                                else {
                                   const data = await res.json().catch(() => ({}))
-                                  alert(data.error || '카테고리 변경에 실패했습니다.')
+                                  alert(data.error || '삭제에 실패했습니다.')
                                 }
                               }}
-                              disabled={categoryUpdatingId === note.id}
-                              className="max-w-[140px] min-w-0 truncate rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--foreground)] focus:border-[var(--border-focus)] focus:outline-none disabled:opacity-60"
-                              aria-label="카테고리 선택"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--foreground-subtle)] hover:bg-[var(--error-muted)] hover:text-[var(--error)]"
+                              aria-label="노트 삭제"
                             >
-                              <option value="">미분류</option>
-                              {categories.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={async (e) => {
-                              e.preventDefault()
-                              if (!confirm('이 노트를 삭제할까요?')) return
-                              const res = await fetch(`/api/notes/${note.id}`, { method: 'DELETE' })
-                              if (res.ok) refreshNotes()
-                              else {
-                                const data = await res.json().catch(() => ({}))
-                                alert(data.error || '삭제에 실패했습니다.')
-                              }
-                            }}
-                            className="shrink-0 rounded p-2 text-[var(--foreground-subtle)] hover:bg-[var(--error-muted)] hover:text-[var(--error)]"
-                            aria-label="노트 삭제"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
                         </div>
                       </li>
                     )

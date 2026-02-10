@@ -43,12 +43,18 @@ export default async function GraphViewPage() {
   }
 
   const userId = user.id
-  const [notesResult, categoriesResult] = await Promise.allSettled([
+  const [notesResult, noteCategoriesResult, categoriesResult] = await Promise.allSettled([
     supabase.from('notes').select('id, title, created_at, category_id, status, file_path, summary').eq('user_id', userId).order('created_at', { ascending: false }),
+    supabase.from('note_categories').select('note_id, category_id'),
     supabase.from('categories').select('id, user_id, name, sort_order, created_at').eq('user_id', userId).order('sort_order').order('created_at'),
   ])
 
-  const notes = (notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []) as { id: string; title: string; created_at: string; category_id: string | null; status: string; file_path?: string; summary: string | null }[]
+  const notesRaw = (notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []) as { id: string; title: string; created_at: string; category_id: string | null; status: string; file_path?: string; summary: string | null }[]
+  const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
+  const notes = notesRaw.map((n) => {
+    const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+    return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+  })
   const categories = (categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []) as Category[]
 
   const dateKeys = [...new Set(notes.map((n) => n.created_at.slice(0, 10)))].sort()

@@ -61,13 +61,14 @@ export default async function NoteDetailPage({ params }: PageProps) {
     console.error('Failed to download file:', err)
   }
 
-  const [categoriesResult, linksResult, projectsResult] = await Promise.all([
+  const [categoriesResult, noteCategoriesResult, linksResult, projectsResult] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
       .eq('user_id', userId)
       .order('sort_order')
       .order('created_at'),
+    adminClient.from('note_categories').select('category_id').eq('note_id', params.id),
     supabase
       .from('study_links')
       .select('*')
@@ -81,13 +82,16 @@ export default async function NoteDetailPage({ params }: PageProps) {
   ])
 
   const categories = categoriesResult.data ?? []
+  const ncData = (noteCategoriesResult as { data?: { category_id: string }[] } | null)?.data
+  const noteCategoryIds = Array.isArray(ncData) ? ncData.map((r) => r.category_id) : (note.category_id ? [note.category_id] : [])
+  const noteWithCategories = { ...note, category_ids: noteCategoryIds }
   const studyLinks = linksResult.data ?? []
   const projects = (projectsResult.data ?? []) as Project[]
   const userIsAdmin = isAdmin(user?.email)
 
   return (
     <NoteDetailClient
-      note={note}
+      note={noteWithCategories}
       fileContent={fileContent}
       userEmail={user?.email ?? ''}
       categories={categories}

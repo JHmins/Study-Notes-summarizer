@@ -13,11 +13,16 @@ export async function PATCH(
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
     }
 
-    const body = await request.json().catch(() => ({})) as { category_id?: string | null; is_favorite?: boolean }
-    const categoryId = body.category_id === undefined ? undefined : (body.category_id === null || body.category_id === '' ? null : body.category_id)
+    const body = await request.json().catch(() => ({})) as {
+      category_id?: string | null
+      category_ids?: string[]
+      is_favorite?: boolean
+    }
+    const categoryIds = body.category_ids
     const isFavorite = body.is_favorite
-    if (categoryId === undefined && isFavorite === undefined) {
-      return NextResponse.json({ error: 'category_id 또는 is_favorite 중 하나가 필요합니다.' }, { status: 400 })
+    const legacyCategoryId = body.category_id === undefined ? undefined : (body.category_id === null || body.category_id === '' ? null : body.category_id)
+    if (categoryIds === undefined && legacyCategoryId === undefined && isFavorite === undefined) {
+      return NextResponse.json({ error: 'category_ids, category_id 또는 is_favorite 중 하나가 필요합니다.' }, { status: 400 })
     }
 
     const admin = createAdminClient()
@@ -34,18 +39,32 @@ export async function PATCH(
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
-    const updates: { category_id?: string | null; is_favorite?: boolean } = {}
-    if (categoryId !== undefined) updates.category_id = categoryId
-    if (isFavorite !== undefined) updates.is_favorite = isFavorite
+    if (categoryIds !== undefined) {
+      const ids = Array.isArray(categoryIds) ? categoryIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : []
+      await admin.from('note_categories').delete().eq('note_id', params.id)
+      if (ids.length > 0) {
+        await admin.from('note_categories').insert(ids.map((category_id) => ({ note_id: params.id, category_id })))
+      }
+      const primaryId = ids[0] ?? null
+      await admin.from('notes').update({ category_id: primaryId }).eq('id', params.id).eq('user_id', user.id)
+    } else if (legacyCategoryId !== undefined) {
+      await admin.from('note_categories').delete().eq('note_id', params.id)
+      if (legacyCategoryId) {
+        await admin.from('note_categories').insert({ note_id: params.id, category_id: legacyCategoryId })
+      }
+      await admin.from('notes').update({ category_id: legacyCategoryId }).eq('id', params.id).eq('user_id', user.id)
+    }
 
-    const { error: updateError } = await admin
-      .from('notes')
-      .update(updates)
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message || '변경에 실패했습니다.' }, { status: 500 })
+    if (isFavorite !== undefined) {
+      const { error: updateError } = await admin
+        .from('notes')
+        .update({ is_favorite: isFavorite })
+        .eq('id', params.id)
+        .eq('user_id', user.id)
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message || '변경에 실패했습니다.' }, { status: 500 })
+      }
     }
     return NextResponse.json({ success: true })
   } catch (err) {

@@ -59,15 +59,18 @@ export default function FileUpload({ onUploadComplete, defaultCategoryId = null,
         .upload(filePath, file, { contentType, upsert: false })
       if (uploadError) throw uploadError
 
-      const { error: insertError } = await supabase.from('notes').insert({
+      const { data: insertedNote, error: insertError } = await supabase.from('notes').insert({
         title: file.name.replace(/\.(txt|md)$/i, ''),
         file_path: filePath,
         file_size: file.size,
         status: 'pending',
         user_id: userId,
         ...(effectiveCategoryId ? { category_id: effectiveCategoryId } : {}),
-      })
+      }).select('id').single()
       if (insertError) throw insertError
+      if (effectiveCategoryId && insertedNote?.id) {
+        await supabase.from('note_categories').insert({ note_id: insertedNote.id, category_id: effectiveCategoryId })
+      }
 
       const response = await fetch('/api/summarize', {
         method: 'POST',

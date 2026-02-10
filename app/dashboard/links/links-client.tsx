@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
@@ -23,6 +23,7 @@ interface LinksClientProps {
 
 export default function LinksClient({ initialLinks, initialCategories, initialNotes, initialGroups, initialSubgroups, user, isAdmin }: LinksClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [links, setLinks] = useState<StudyLink[]>(initialLinks)
   const supabase = createClient()
 
@@ -110,6 +111,16 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
     setGroups(initialGroups)
     setSubgroups(initialSubgroups)
   }, [initialLinks, initialCategories, initialNotes, initialGroups, initialSubgroups])
+
+  // 사이드바 "수업 자료" 클릭 시(?reset=1) 모든 그룹·소그룹·링크 펼침 초기화
+  useEffect(() => {
+    if (searchParams.get('reset') === '1') {
+      setExpandedGroups(new Set())
+      setExpandedSubgroups(new Set())
+      setExpandedLinks(new Set())
+      router.replace('/dashboard/links', { scroll: false })
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     const onFocus = () => {

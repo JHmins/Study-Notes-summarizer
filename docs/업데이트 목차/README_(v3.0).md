@@ -1,4 +1,4 @@
-# Study Notes Summarizer (V2.0)
+# Study Notes Summarizer (V3.0)
 
 https://web-study-notes-summarizer.vercel.app
 
@@ -12,6 +12,9 @@ https://web-study-notes-summarizer.vercel.app
 
 | 버전 | 날짜 | 항목 | 내용 |
 |------|------|------|------|
+| V3.0 | 2026-02-09 | 즐겨찾기 기능 | 노트별 즐겨찾기 토글 추가. `notes.is_favorite` 컬럼 및 마이그레이션 `013_notes_favorite.sql`. PATCH `/api/notes/[id]`에 `is_favorite` 지원. 대시보드·노트 상세에서 별 버튼으로 토글, 낙관적 업데이트로 즉시 반응. 상단 툴바 "즐겨찾기만" 필터, 정렬 시 즐겨찾기 노트 우선. |
+| V3.0 | 2026-02-09 | 사이드바 카테고리 즐겨찾기 묶음 | 왼쪽 카테고리란에 미분류와 같이 '즐겨찾기' 항목 추가. 선택 시 즐겨찾기한 노트만 표시, 개수 배지 표시. 카테고리 목록 내 즐겨찾기 항목은 텍스트만 표시(별 아이콘 없음). `?category=_favorites` 로 진입 가능. |
+| V2.5 | 2026-02-09 | 수업 자료 링크 그룹/소그룹 구조 개선 | 그룹과 소그룹을 별도 SQL 테이블(`link_groups`, `link_subgroups`)로 전환하여 정규화. 그룹/소그룹 이름 수정 및 삭제 기능 추가. 소그룹 제목 글씨 크기 조정. 링크 수정 시 자동 스크롤. 링크 정렬 순서 변경. |
 | V2.0 | 2026-02-09 | 코드 정리 및 개선 | `categoryErrorMessage` 함수를 `lib/utils/errors.ts`로 이동하여 재사용 가능하게 개선. `any` 타입을 `unknown`으로 변경하여 타입 안정성 향상. 에러 처리 일관성 개선. `as any` 타입 단언 제거. |
 | V2.0 | 2026-02-09 | 카테고리 UI 개선 | 카테고리 순서 변경 기능 추가: 드래그 앤 드롭 지원, 위/아래 버튼으로 한 칸씩 이동. 통합 메뉴 버튼 추가(위/아래/수정/삭제). 사이드바 너비 조정. |
 | V1.0 | 2026-02-09 | 노트 목록 페이지네이션 | 보기 개수(1/3/5/7/10개·전체) 선택, 이전/다음·페이지 번호로 이동. 9페이지 초과 시 첫·마지막·현재±2만 표시(예: 1 … 4 5 6 7 … 20). |
@@ -45,13 +48,13 @@ https://web-study-notes-summarizer.vercel.app
 | **파일 업로드** | `.txt`, `.md` 파일 드래그 앤 드롭 또는 선택 업로드 (최대 10MB). Storage 버킷 `study-notes`에 저장 |
 | **자동 요약** | 업로드 후 API가 Storage에서 파일을 읽어 LLM으로 한국어 마크다운 요약 생성. 상태: `pending` → `processing` → `completed` / `failed` |
 | **요약 재생성** | 실패하거나 다시 만들고 싶을 때 `/api/summarize/retry`로 재시도 |
-| **노트 목록·필터** | 대시보드에서 노트 목록, 날짜/카테고리/상태 필터, 정렬(최신/오래된순/제목). **페이지네이션**: 1/3/5/7/10개·전체 보기 선택, 페이지 번호로 이동(9페이지 초과 시 생략 표시) |
+| **노트 목록·필터** | 대시보드에서 노트 목록, 날짜/카테고리/상태 필터, 정렬(최신/오래된순/제목). **즐겨찾기**: 노트별 별 버튼 토글, "즐겨찾기만" 필터, 정렬 시 즐겨찾기 우선. **페이지네이션**: 1/3/5/7/10개·전체 보기 선택, 페이지 번호로 이동(9페이지 초과 시 생략 표시) |
 | **대시보드 학습 통계** | 맨 앞에 총 노트 개수, 수업 자료 링크 개수, 프로젝트 개수, **공부 시간**(오늘 공부/방문한 시간). 공부 시간은 `sessionStorage`로 같은 탭에서 다른 페이지 갔다 와도 누적. 수업 자료·프로젝트 카드 클릭 시 해당 페이지로 이동 |
-| **노트 상세** | 요약·원문 보기, 카테고리/프로젝트 지정, 삭제 |
+| **노트 상세** | 요약·원문 보기, 카테고리/프로젝트 지정, 즐겨찾기 토글, 삭제 |
 | **검색** | 노트 제목·파일 내용 검색 (2글자 이상). API에서 Storage 파일 내용 읽어 매칭 후 결과 반환 |
-| **카테고리** | 사이드바에서 카테고리 추가/수정/삭제. 노트에 카테고리 연결. **순서 변경**: 드래그 앤 드롭 또는 위/아래 버튼으로 자유롭게 재정렬. 통합 메뉴 버튼으로 위/아래/수정/삭제 기능 접근 |
+| **카테고리** | 사이드바에서 카테고리 추가/수정/삭제. 노트에 카테고리 연결. **즐겨찾기 묶음**: 미분류와 같이 '즐겨찾기' 항목으로 즐겨찾기한 노트만 모아 보기. **순서 변경**: 드래그 앤 드롭 또는 위/아래 버튼으로 자유롭게 재정렬. 통합 메뉴 버튼으로 위/아래/수정/삭제 기능 접근 |
 | **프로젝트** | 프로젝트 생성 후 노트를 프로젝트에 묶어 관리. 프로젝트별 상세 페이지 |
-| **스터디 링크** | 유용한 링크 저장. 노트와 연결 가능 (`note_id`) |
+| **스터디 링크** | 유용한 링크 저장. 노트와 연결 가능 (`note_id`). 그룹/소그룹으로 분류 관리. 그룹/소그룹 이름 수정 및 삭제 가능. |
 | **그래프 뷰** | 노트·카테고리·날짜·키워드를 시각화한 그래프 페이지. PC는 마우스 드래그·휠 줌, **모바일은 터치 드래그로 패닝** 지원 |
 | **비교 뷰** | 두 노트를 골라 요약/원문을 나란히 비교 |
 | **캘린더** | 사이드바에 오늘/이번 주 노트 수, 월별 캘린더로 날짜 필터 |
@@ -92,7 +95,7 @@ Study-Notes-summarizer/
 │       ├── admin/pending-users/route.ts
 │       ├── notes/[id]/route.ts   # 노트 GET/PATCH/DELETE
 │       ├── search/route.ts       # 노트 내용 검색
-│       ├── summarize/route.ts    # 요약 생성
+│       ├── summarize/route.ts     # 요약 생성
 │       └── summarize/retry/route.ts
 ├── components/                   # 공통 UI 컴포넌트
 │   ├── sidebar.tsx               # 사이드바 (전체 노트, 오늘, 그래프, 링크, 프로젝트, 캘린더)
@@ -114,21 +117,18 @@ Study-Notes-summarizer/
 │       ├── errors.ts
 │       └── format.ts
 ├── types/
-│   └── index.ts                  # Note, Category, Project, StudyLink, NOTE_STATUS_CONFIG 등
+│   └── index.ts                  # Note, Category, Project, StudyLink, LinkGroup, LinkSubgroup, NOTE_STATUS_CONFIG 등
 ├── supabase/
-│   └── migrations/               # DB 마이그레이션 (001~011 순서 적용)
+│   └── migrations/               # DB 마이그레이션 (001~013 순서 적용)
 ├── scripts/
 │   └── check-env-not-staged.js   # .env.local이 Git에 스테이징되지 않았는지 확인 (npm run check:env)
 ├── public/                       # 정적 파일 (로고, 아이콘)
 ├── middleware.ts                 # 인증 체크, /dashboard·/admin 접근 시 로그인 리다이렉트
 └── docs/                         # 설정·문제해결 가이드
     ├── ENV_SECURITY.md
-    ├── GIT_SETUP_GUIDE.md
-    ├── SETUP.md
-    ├── VERCEL_DEPLOYMENT.md
-    ├── Storage_오류_해결_가이드.md
-    ├── 로그인_오류_해결_가이드.md
-    └── TEST_CHECKLIST.md
+    ├── 오류 해결 사항들/
+    ├── 체크리스트/
+    └── 업데이트 목차/             # 버전별 업데이트 요약 (README_(v2).md, README_(v2.5).md, README_(v3.0).md)
 ```
 
 ---
@@ -144,7 +144,7 @@ Study-Notes-summarizer/
 | `/` | 로그인되어 있으면 `/dashboard`로 이동, 아니면 `/auth/login`으로 이동 |
 | `/auth/login` | 로그인 페이지 |
 | `/auth/signup` | 회원가입 페이지 |
-| `/dashboard` | 메인 대시보드. 학습 통계(총 노트·수업 자료·프로젝트·공부 시간), 업로드, 검색, 보기(1/3/5/7/10·전체)·정렬, 페이지네이션, 노트 목록. `?date=`, `?category=` 로 날짜/카테고리 필터 |
+| `/dashboard` | 메인 대시보드. 학습 통계(총 노트·수업 자료·프로젝트·공부 시간), 업로드, 검색, 보기(1/3/5/7/10·전체)·정렬, 즐겨찾기 필터, 페이지네이션, 노트 목록. `?date=`, `?category=` 로 날짜/카테고리 필터(`?category=_favorites` 시 즐겨찾기만 표시) |
 | `/dashboard/notes/[id]` | 노트 하나 상세 보기 |
 | `/dashboard/projects` | 프로젝트 목록 |
 | `/dashboard/projects/[id]` | 프로젝트 하나 상세 보기 |
@@ -163,7 +163,7 @@ Study-Notes-summarizer/
 | POST | `/api/summarize` | 업로드된 파일 기준으로 요약 생성. Body: `{ filePath, fileName }` |
 | POST | `/api/summarize/retry` | 요약 재시도 |
 | GET | `/api/notes/[id]` | 노트 조회 |
-| PATCH | `/api/notes/[id]` | 노트 수정 (category_id, project_id 등) |
+| PATCH | `/api/notes/[id]` | 노트 수정 (category_id, project_id, is_favorite 등) |
 | DELETE | `/api/notes/[id]` | 노트 삭제 |
 | GET | `/api/admin/pending-users` | 승인 대기 사용자 목록 (이메일 있는 사람만) |
 | POST | `/api/admin/approve` | 사용자 승인 처리 |
@@ -173,7 +173,7 @@ Study-Notes-summarizer/
 
 ## 5. 인증·미들웨어
 
-**미들웨어**는 사용자가 어떤 주소로 들어오기 **직전에 한 번** 실행되는 코드입니다. 여기서는 “로그인 여부”를 보고, 필요하면 로그인 페이지나 대시보드로 보내줍니다.
+**미들웨어**는 사용자가 어떤 주소로 들어오기 **직전에 한 번** 실행되는 코드입니다. 여기서는 "로그인 여부"를 보고, 필요하면 로그인 페이지나 대시보드로 보내줍니다.
 
 - **동작 요약** (`middleware.ts`)
   - 쿠키로 현재 사용자 정보를 읽어서 로그인 여부를 판단합니다.
@@ -195,7 +195,7 @@ Study-Notes-summarizer/
 
 ## 6. 데이터베이스 구조 (Supabase / PostgreSQL)
 
-DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 011)대로 적용한 상태를 기준으로 합니다.
+DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 013)대로 적용한 상태를 기준으로 합니다.
 
 ### 마이그레이션 목록
 
@@ -212,14 +212,18 @@ DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 0
 | `009_profiles_approval.sql` | `profiles` (id, email, approved 등), 가입 시 자동 삽입 트리거 |
 | `010_projects.sql` | `projects`, `project_files` 테이블 |
 | `011_notes_project_relation.sql` | `notes.project_id` 추가 |
+| `012_link_groups.sql` | `link_groups`, `link_subgroups` 테이블, `study_links.group_id`, `study_links.subgroup_id` 추가 |
+| `013_notes_favorite.sql` | `notes.is_favorite` (BOOLEAN, 기본 false), 즐겨찾기용 부분 인덱스 |
 
 ### 테이블 역할 요약
 
-- **notes**: 업로드한 파일의 메타정보·요약·상태. `user_id`, `category_id`, `project_id` 로 사용자/카테고리/프로젝트와 연결
+- **notes**: 업로드한 파일의 메타정보·요약·상태. `user_id`, `category_id`, `project_id`, `is_favorite` 로 사용자/카테고리/프로젝트/즐겨찾기와 연결
 - **categories**: 사용자별 카테고리. `user_id`, `sort_order` 로 정렬
 - **profiles**: 로그인 사용자와 1:1. `approved` 로 가입 승인 여부 관리
 - **projects / project_files**: 프로젝트 정보와, 그 프로젝트에 속한 파일(노트) 목록
-- **study_links**: 저장한 링크. 선택적으로 `note_id` 로 노트와 연결
+- **study_links**: 저장한 링크. 선택적으로 `note_id` 로 노트와 연결. `group_id`, `subgroup_id` 로 그룹/소그룹과 연결
+- **link_groups**: 사용자별 링크 그룹. `user_id`, `name`, `sort_order` 로 관리
+- **link_subgroups**: 그룹별 소그룹. `group_id`, `user_id`, `name`, `sort_order` 로 관리
 
 ### 보안
 
@@ -247,7 +251,7 @@ DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 0
 
 ### 7.3 공통 코드 위치
 
-- **타입**: `types/index.ts` — `Note`, `Category`, `Project`, `StudyLink`, `NoteStatus`, `NOTE_STATUS_CONFIG` 등
+- **타입**: `types/index.ts` — `Note`, `Category`, `Project`, `StudyLink`, `LinkGroup`, `LinkSubgroup`, `NoteStatus`, `NOTE_STATUS_CONFIG` 등
 - **상수·설정**: `lib/utils/constants.ts` — `ADMIN_EMAILS`, `MAX_FILE_SIZE`, `ALLOWED_FILE_TYPES` 등
 - **인증**: `lib/utils/auth.ts` — `isAdmin()`
 - **포맷·에러**: `lib/utils/format.ts`, `lib/utils/errors.ts` — 날짜 포맷, 파일 크기 포맷, 에러 메시지 변환 등
@@ -270,7 +274,7 @@ DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 0
 
 ### 기능
 
-파일 업로드 → 자동 요약, 검색, 카테고리·프로젝트·링크·그래프·비교, 이메일 가입·관리자 승인, 익명 로그인. 대시보드 페이지네이션, 학습 통계(공부 시간) 표시, 그래프 뷰 모바일 터치 지원 포함.
+파일 업로드 → 자동 요약, 검색, 카테고리·프로젝트·링크·그래프·비교, 이메일 가입·관리자 승인, 익명 로그인. 노트 즐겨찾기·사이드바 즐겨찾기 묶음, 대시보드 페이지네이션, 학습 통계(공부 시간) 표시, 그래프 뷰 모바일 터치 지원 포함.
 
 ### 구조
 
@@ -284,4 +288,4 @@ App Router 기준으로 `app/`(페이지·API), `components/`, `lib/`(supabase, 
 
 ## 9. 변경 사항
 
-→ **[업데이트 목차](#업데이트-목차)** 섹션 참조. 이후 업데이트는 해당 목차에 버전, 날짜, 시간과 함께 기록합니다.
+→ **[업데이트 목차](#업데이트-목차)** 섹션 참조. 이후 업데이트는 해당 목차에 버전, 날짜와 함께 기록합니다.

@@ -14,6 +14,7 @@ export interface Note {
   file_path?: string
   category_id?: string | null
   project_id?: string | null
+  is_favorite?: boolean
 }
 
 export interface Category {

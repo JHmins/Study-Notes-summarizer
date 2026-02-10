@@ -12,6 +12,7 @@ import SidebarCategories from './sidebar-categories'
 export interface SidebarNote extends NoteForCalendar {
   status: string
   category_id?: string | null
+  is_favorite?: boolean
 }
 
 interface SidebarProps {
@@ -65,6 +66,8 @@ export default function Sidebar({
     acc[id] = (acc[id] ?? 0) + 1
     return acc
   }, {})
+  const favoritesCount = notes.filter((n) => n.is_favorite).length
+  const notesCountWithFavorites = { ...notesCountByCategory, _favorites: favoritesCount }
 
   const recentNotes = notes.slice(0, 6)
   const [isDark, setIsDark] = useState(false)
@@ -135,7 +138,7 @@ export default function Sidebar({
             </button>
           ) : (
             <Link
-              href="/dashboard"
+              href="/dashboard?reset=1"
               onClick={onMobileClose}
               className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
             >
@@ -177,7 +180,7 @@ export default function Sidebar({
             그래프 뷰
           </Link>
           <Link
-            href="/dashboard/links"
+            href="/dashboard/links?reset=1"
             onClick={onMobileClose}
             className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
           >
@@ -209,7 +212,7 @@ export default function Sidebar({
         onSelectCategory={onSelectCategory}
         onCategoriesChange={onCategoriesChange}
         userId={userId}
-        notesCountByCategory={notesCountByCategory}
+        notesCountByCategory={notesCountWithFavorites}
         onMobileClose={onMobileClose}
       />
 

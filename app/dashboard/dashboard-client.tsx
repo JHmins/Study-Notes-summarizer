@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { format, startOfDay, parseISO, isSameDay } from 'date-fns'
 import { ko } from 'date-fns/locale/ko'
@@ -33,6 +33,7 @@ type SortKey = 'newest' | 'oldest' | 'title'
 
 export default function DashboardClient({ initialNotes, initialCategories, initialLinksCount = 0, initialProjectsCount = 0, user, isAdmin, initialDate, initialCategoryId }: DashboardClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [notes, setNotes] = useState<Note[]>(initialNotes)
   const [categories, setCategories] = useState<Category[]>(initialCategories)
   const [searchQuery, setSearchQuery] = useState('')
@@ -53,6 +54,8 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
   const [sortBy, setSortBy] = useState<SortKey>('newest')
   const [perPage, setPerPage] = useState<number | 'all'>(10)
   const [currentPage, setCurrentPage] = useState(1)
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [favoriteUpdatingId, setFavoriteUpdatingId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [categoryUpdatingId, setCategoryUpdatingId] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -104,6 +107,14 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
       setCalendarMonth(new Date())
     }
   }, [initialDate, initialCategoryId])
+
+  // 다른 페이지에서 "전체 노트" 클릭 시(?reset=1) 첫 페이지로 이동
+  useEffect(() => {
+    if (searchParams.get('reset') === '1') {
+      setCurrentPage(1)
+      router.replace('/dashboard', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // URL 파라미터에서 compare 노트 ID 가져오기
   useEffect(() => {
@@ -206,20 +217,26 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
       const matchesCategory =
         selectedCategoryId === null
           ? true
-          : selectedCategoryId === '_none'
-            ? (note.category_id ?? null) === null
-            : (note.category_id ?? null) === selectedCategoryId
-      return matchesSearch && matchesStatus && matchesDate && matchesCategory
+          : selectedCategoryId === '_favorites'
+            ? !!note.is_favorite
+            : selectedCategoryId === '_none'
+              ? (note.category_id ?? null) === null
+              : (note.category_id ?? null) === selectedCategoryId
+      const matchesFavorite = !showFavoritesOnly || !!note.is_favorite
+      return matchesSearch && matchesStatus && matchesDate && matchesCategory && matchesFavorite
     })
 
     const cmp = (a: Note, b: Note) => {
+      const favA = a.is_favorite ? 1 : 0
+      const favB = b.is_favorite ? 1 : 0
+      if (favB !== favA) return favB - favA
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       if (sortBy === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       return (a.title || '').localeCompare(b.title || '', 'ko')
     }
     list = [...list].sort(cmp)
     return list
-  }, [notes, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy])
+  }, [notes, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy, showFavoritesOnly])
 
   const perPageOptions = [1, 3, 5, 7, 10, 'all'] as const
   const totalPages = perPage === 'all' ? 1 : Math.max(1, Math.ceil(filteredNotes.length / perPage))
@@ -231,7 +248,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [perPage, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy])
+  }, [perPage, searchQuery, filterStatus, selectedDate, selectedCategoryId, sortBy, showFavoritesOnly])
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages))
@@ -268,6 +285,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
           setSelectedCategoryId(null)
           setCalendarMonth(new Date())
           setFilterStatus('all')
+          setCurrentPage(1)
           router.replace('/dashboard')
         }}
         mobileOpen={sidebarOpen}
@@ -291,9 +309,11 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
             <div className="flex items-center gap-2">
               {selectedCategoryId ? (
                 <span className="text-sm font-medium text-[var(--foreground)]">
-                  {selectedCategoryId === '_none'
-                    ? '미분류'
-                    : categories.find((c) => c.id === selectedCategoryId)?.name ?? '카테고리'}{' '}
+                  {selectedCategoryId === '_favorites'
+                    ? '즐겨찾기'
+                    : selectedCategoryId === '_none'
+                      ? '미분류'
+                      : categories.find((c) => c.id === selectedCategoryId)?.name ?? '카테고리'}{' '}
                   노트
                 </span>
               ) : selectedDate ? (
@@ -428,6 +448,22 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                   <option value="title">제목순</option>
                 </select>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowFavoritesOnly((v) => !v)}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  showFavoritesOnly
+                    ? 'border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                }`}
+                aria-pressed={showFavoritesOnly}
+                aria-label="즐겨찾기만 보기"
+              >
+                <svg className="h-4 w-4" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                즐겨찾기만
+              </button>
             </div>
           </div>
 
@@ -441,9 +477,11 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
               )}
               {selectedCategoryId && (
                 <span className="text-sm text-[var(--foreground-muted)]">
-                  {selectedCategoryId === '_none'
-                    ? '미분류'
-                    : categories.find((c) => c.id === selectedCategoryId)?.name}{' '}
+                  {selectedCategoryId === '_favorites'
+                    ? '즐겨찾기'
+                    : selectedCategoryId === '_none'
+                      ? '미분류'
+                      : categories.find((c) => c.id === selectedCategoryId)?.name}{' '}
                   보기 중
                 </span>
               )}
@@ -598,7 +636,7 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                 setTimeout(() => { refreshNotes() }, 2000)
                 setTimeout(() => { refreshNotes() }, 5000)
               }}
-              defaultCategoryId={selectedCategoryId}
+              defaultCategoryId={selectedCategoryId === '_favorites' ? null : selectedCategoryId}
               categories={categories}
             />
           </section>
@@ -613,9 +651,11 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                     : selectedDate
                     ? '이 날짜에 업로드한 노트가 없습니다.'
                     : selectedCategoryId
-                    ? selectedCategoryId === '_none'
-                      ? '미분류 노트가 없습니다.'
-                      : '이 카테고리에 노트가 없습니다.'
+                    ? selectedCategoryId === '_favorites'
+                      ? '즐겨찾기 노트가 없습니다.'
+                      : selectedCategoryId === '_none'
+                        ? '미분류 노트가 없습니다.'
+                        : '이 카테고리에 노트가 없습니다.'
                     : '검색·필터 조건에 맞는 노트가 없습니다.'}
                 </div>
               ) : (
@@ -719,6 +759,37 @@ export default function DashboardClient({ initialNotes, initialCategories, initi
                             className="shrink-0 flex items-center gap-1"
                             onClick={(e) => e.preventDefault()}
                           >
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const next = !note.is_favorite
+                                setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, is_favorite: next } : n)))
+                                setFavoriteUpdatingId(note.id)
+                                const res = await fetch(`/api/notes/${note.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ is_favorite: next }),
+                                })
+                                setFavoriteUpdatingId(null)
+                                if (!res.ok) {
+                                  setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, is_favorite: note.is_favorite } : n)))
+                                  const data = await res.json().catch(() => ({}))
+                                  alert(data.error || '즐겨찾기 변경에 실패했습니다.')
+                                }
+                              }}
+                              disabled={favoriteUpdatingId === note.id}
+                              className={`shrink-0 rounded p-2 transition-colors disabled:opacity-60 ${
+                                note.is_favorite
+                                  ? 'text-amber-500 hover:bg-amber-500/10'
+                                  : 'text-[var(--foreground-subtle)] hover:bg-[var(--surface-hover)] hover:text-amber-500/80'
+                              }`}
+                              aria-label={note.is_favorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                              title={note.is_favorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                            >
+                              <svg className="h-4 w-4" fill={note.is_favorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            </button>
                             <select
                               value={note.category_id ?? ''}
                               onChange={async (e) => {

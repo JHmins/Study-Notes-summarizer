@@ -225,6 +225,24 @@ export default function SidebarCategories({
         <li className="flex items-center gap-1 rounded-xl transition-colors hover:bg-[var(--surface-hover)]">
           <button
             type="button"
+            onClick={() => { onSelectCategory(selectedCategoryId === '_favorites' ? null : '_favorites'); onMobileClose?.(); }}
+            className={`flex min-w-0 flex-1 items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+              selectedCategoryId === '_favorites'
+                ? 'bg-[var(--accent-muted)] font-medium text-[var(--accent)]'
+                : 'text-[var(--foreground-muted)]'
+            }`}
+          >
+            <span className="break-words whitespace-pre-wrap">즐겨찾기</span>
+            {(notesCountByCategory['_favorites'] ?? 0) > 0 && (
+              <span className="shrink-0 rounded-full bg-[var(--surface-hover)] px-1.5 py-0.5 text-xs text-[var(--foreground-muted)]">
+                {notesCountByCategory['_favorites']}
+              </span>
+            )}
+          </button>
+        </li>
+        <li className="flex items-center gap-1 rounded-xl transition-colors hover:bg-[var(--surface-hover)]">
+          <button
+            type="button"
             onClick={() => { onSelectCategory(selectedCategoryId === '_none' ? null : '_none'); onMobileClose?.(); }}
             className={`flex min-w-0 flex-1 items-start gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
               selectedCategoryId === '_none'

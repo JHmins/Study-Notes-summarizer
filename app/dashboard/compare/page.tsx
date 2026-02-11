@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/utils/auth'
+import type { Note } from '@/types'
 import CompareClient from './compare-client'
 
 interface PageProps {
@@ -109,9 +110,9 @@ export default async function ComparePage({ searchParams }: PageProps) {
   const note1WithCategories = { ...note1, category_ids: note1CategoryIds.length > 0 ? note1CategoryIds : (note1.category_id ? [note1.category_id] : []) }
   const note2WithCategories = { ...note2, category_ids: note2CategoryIds.length > 0 ? note2CategoryIds : (note2.category_id ? [note2.category_id] : []) }
 
-  const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+  const notes: Note[] = notesRaw.map((n: Record<string, unknown> & { id: string; category_id?: string | null }) => {
     const ids = noteCategoriesList.filter((nc) => nc.note_id === n.id).map((nc) => nc.category_id)
-    return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+    return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) } as Note
   })
 
   const userIsAdmin = isAdmin(user?.email)

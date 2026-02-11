@@ -38,11 +38,11 @@ const MD_SYSTEM_PROMPT = `You are a professional academic summarization assistan
 
 2. 큰 섹션은 반드시 아래 형식을 따르세요:
 
-# 1. 대제목
+## 1. 제목
 내용
 
 ---
-## 2. 소제목
+## 2. 제목
 내용
 
 3. 각 ## 섹션 사이에는 반드시 수평선 --- 를 삽입하세요.
@@ -61,6 +61,7 @@ const MD_SYSTEM_PROMPT = `You are a professional academic summarization assistan
 
 - 세 개의 백틱(\`\`\`) 코드 블록은 절대 사용 금지
 - 인라인 코드(한 개 백틱)만 허용
+- 코드·명령어 예시를 포함할 때는 **사용된 주요 옵션과 인자(argument)가 무엇을 의미하는지** 한두 문장으로 함께 설명하세요.
 
 ────────────────────────
 [내용 구성 원칙]

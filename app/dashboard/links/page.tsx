@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/utils/auth'
+import type { Note } from '@/types'
 import type { User } from '@supabase/supabase-js'
 import LinksClient from './links-client'
 
@@ -62,9 +63,9 @@ export default async function LinksPage() {
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
     const notesRaw = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
     const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
-    const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+    const notes: Note[] = notesRaw.map((n: Record<string, unknown> & { id: string; category_id?: string | null }) => {
       const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
-      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) } as Note
     })
     const groups = groupsResult.status === 'fulfilled' ? (groupsResult.value.data ?? []) : []
     const subgroups = subgroupsResult.status === 'fulfilled' ? (subgroupsResult.value.data ?? []) : []
@@ -86,9 +87,6 @@ export default async function LinksPage() {
     }
 
     const userIsAdmin = isAdmin(user?.email)
-    if (!user) {
-      redirect('/auth/login')
-    }
     return (
       <LinksClient
         initialLinks={links}

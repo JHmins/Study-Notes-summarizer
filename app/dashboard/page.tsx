@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { Note } from '@/types'
 import type { User } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/utils/auth'
 import DashboardClient from './dashboard-client'
@@ -41,9 +42,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
     const notesRaw = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
     const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
-    const notes = notesRaw.map((n: { id: string; category_id?: string | null; [k: string]: unknown }) => {
+    const notes: Note[] = notesRaw.map((n: Record<string, unknown> & { id: string; category_id?: string | null }) => {
       const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
-      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) } as Note
     })
     const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
     const linksCount = linksResult.status === 'fulfilled' && linksResult.value.count != null ? linksResult.value.count : 0

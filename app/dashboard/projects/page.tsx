@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { Note } from '@/types'
 import ProjectsClient from './projects-client'
 import type { User } from '@supabase/supabase-js'
 import { isAdmin } from '@/lib/utils/auth'
@@ -48,9 +49,9 @@ export default async function ProjectsPage() {
     const projects = projectsResult.data ?? []
     const notesRaw = notesResult.data ?? []
     const noteCategories = noteCategoriesResult.data ?? []
-    const notes = notesRaw.map((n: { id: string; category_id?: string | null }) => {
+    const notes: Note[] = notesRaw.map((n: Record<string, unknown> & { id: string; category_id?: string | null }) => {
       const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
-      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) }
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) } as Note
     })
     const categories = categoriesResult.data ?? []
     const userIsAdmin = isAdmin(user.email)

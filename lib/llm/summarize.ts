@@ -92,7 +92,8 @@ const MD_SYSTEM_PROMPT = `You are a professional academic summarization assistan
 각 ## 큰 섹션 마지막에 다음을 추가하세요:
 
 ### Key Terminology
-- 해당 섹션 핵심 용어 3~5개 정리
+- 해당 섹션 핵심 용어 정리 (**총 개수는 5개를 넘지 마세요**)
+- 명령어·코드에 등장하는 **Parameter(매개변수)·Argument(전달인자)** 는 핵심 용어로 선정하지 마세요. 개념·정의·주제가 되는 용어만 선정하세요.
 
 요약의 마지막에는 반드시 다음을 추가하세요:
 

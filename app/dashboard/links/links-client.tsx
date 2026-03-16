@@ -56,12 +56,15 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
     note_id: '' as string,
   })
 
+  // Supabase 기본 1000행 제한을 넘기 위해 범위 지정 (링크 개수 제한 없음)
+  const MAX_ROWS = 50000
   const refreshLinks = async () => {
     const { data } = await supabase
       .from('study_links')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
+      .range(0, MAX_ROWS - 1)
     if (data) setLinks(data)
   }
 
@@ -103,6 +106,7 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       .eq('user_id', user.id)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
+      .range(0, MAX_ROWS - 1)
     if (data) setGroups(data)
   }
 
@@ -113,6 +117,7 @@ export default function LinksClient({ initialLinks, initialCategories, initialNo
       .eq('user_id', user.id)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
+      .range(0, MAX_ROWS - 1)
     if (data) setSubgroups(data)
   }
 

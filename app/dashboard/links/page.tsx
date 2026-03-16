@@ -27,36 +27,43 @@ export default async function LinksPage() {
     }
 
     const userId = user.id
+    // Supabase 기본 행 제한(1000)을 넘기 위해 넉넉한 범위 지정 (수업 자료 링크 개수 제한 없음)
+    const MAX_ROWS = 50000
     const [linksResult, categoriesResult, notesResult, noteCategoriesResult, groupsResult, subgroupsResult] = await Promise.allSettled([
       supabase
         .from('study_links')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
       supabase
         .from('categories')
         .select('*')
         .eq('user_id', userId)
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
       supabase
         .from('notes')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false }),
-      supabase.from('note_categories').select('note_id, category_id'),
+        .order('created_at', { ascending: false })
+        .range(0, MAX_ROWS - 1),
+      supabase.from('note_categories').select('note_id, category_id').range(0, MAX_ROWS - 1),
       supabase
         .from('link_groups')
         .select('*')
         .eq('user_id', userId)
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
       supabase
         .from('link_subgroups')
         .select('*')
         .eq('user_id', userId)
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true }),
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
     ])
 
     const links = linksResult.status === 'fulfilled' ? (linksResult.value.data ?? []) : []

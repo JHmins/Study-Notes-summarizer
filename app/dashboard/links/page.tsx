@@ -1,0 +1,112 @@
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { isAdmin } from '@/lib/utils/auth'
+import type { Note } from '@/types'
+import type { User } from '@supabase/supabase-js'
+import LinksClient from './links-client'
+
+export default async function LinksPage() {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      redirect('/auth/login')
+    }
+
+    if (!user.is_anonymous) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('approved')
+        .eq('id', user.id)
+        .single()
+      if (profile && profile.approved !== true) {
+        await supabase.auth.signOut()
+        redirect('/auth/login?message=pending')
+      }
+    }
+
+    const userId = user.id
+    // Supabase 기본 행 제한(1000)을 넘기 위해 넉넉한 범위 지정 (수업 자료 링크 개수 제한 없음)
+    const MAX_ROWS = 50000
+    const [linksResult, categoriesResult, notesResult, noteCategoriesResult, groupsResult, subgroupsResult] = await Promise.allSettled([
+      supabase
+        .from('study_links')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
+      supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
+      supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(0, MAX_ROWS - 1),
+      supabase.from('note_categories').select('note_id, category_id').range(0, MAX_ROWS - 1),
+      supabase
+        .from('link_groups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
+      supabase
+        .from('link_subgroups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .range(0, MAX_ROWS - 1),
+    ])
+
+    const links = linksResult.status === 'fulfilled' ? (linksResult.value.data ?? []) : []
+    const categories = categoriesResult.status === 'fulfilled' ? (categoriesResult.value.data ?? []) : []
+    const notesRaw = notesResult.status === 'fulfilled' ? (notesResult.value.data ?? []) : []
+    const noteCategories = noteCategoriesResult.status === 'fulfilled' ? (noteCategoriesResult.value.data ?? []) : []
+    const notes: Note[] = notesRaw.map((n: Record<string, unknown> & { id: string; category_id?: string | null }) => {
+      const ids = noteCategories.filter((nc: { note_id: string }) => nc.note_id === n.id).map((nc: { category_id: string }) => nc.category_id)
+      return { ...n, category_ids: ids.length > 0 ? ids : (n.category_id ? [n.category_id] : []) } as Note
+    })
+    const groups = groupsResult.status === 'fulfilled' ? (groupsResult.value.data ?? []) : []
+    const subgroups = subgroupsResult.status === 'fulfilled' ? (subgroupsResult.value.data ?? []) : []
+
+    if (linksResult.status === 'rejected') {
+      console.error('Links fetch error:', linksResult.reason)
+    }
+    if (categoriesResult.status === 'rejected') {
+      console.error('Categories fetch error:', categoriesResult.reason)
+    }
+    if (notesResult.status === 'rejected') {
+      console.error('Notes fetch error:', notesResult.reason)
+    }
+    if (groupsResult.status === 'rejected') {
+      console.error('Link groups fetch error:', groupsResult.reason)
+    }
+    if (subgroupsResult.status === 'rejected') {
+      console.error('Link subgroups fetch error:', subgroupsResult.reason)
+    }
+
+    const userIsAdmin = isAdmin(user?.email)
+    return (
+      <LinksClient
+        initialLinks={links}
+        initialCategories={categories}
+        initialNotes={notes}
+        initialGroups={groups}
+        initialSubgroups={subgroups}
+        user={user as User}
+        isAdmin={userIsAdmin}
+      />
+    )
+  } catch (err) {
+    console.error('Links page error:', err)
+    throw err instanceof Error ? err : new Error('링크 페이지를 불러오는 중 오류가 났습니다.')
+  }
+}

@@ -35,6 +35,8 @@ interface SidebarProps {
   onLinksClick?: () => void
   mobileOpen?: boolean
   onMobileClose?: () => void
+  mode?: 'private' | 'public'
+  noteHrefBase?: string
 }
 
 export default function Sidebar({
@@ -54,6 +56,8 @@ export default function Sidebar({
   onLinksClick,
   mobileOpen = false,
   onMobileClose,
+  mode = 'private',
+  noteHrefBase = '/dashboard/notes',
 }: SidebarProps) {
   const today = startOfDay(new Date())
   const todayKey = format(today, 'yyyy-MM-dd')
@@ -95,7 +99,7 @@ export default function Sidebar({
   const content = (
     <>
       <div className="flex h-14 shrink-0 items-center justify-between pl-4 pr-0 lg:justify-start">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline">
+        <Link href={mode === 'public' ? '/public' : '/dashboard'} className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline">
           <img 
             src={isDark ? "/logo-dark.png" : "/logo.png"} 
             alt="" 
@@ -121,18 +125,20 @@ export default function Sidebar({
 
       <nav className="pl-3 pr-0 py-2">
         <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => { onMobileClose?.(); document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth' }); }}
-            className="flex w-full items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-muted)]/50"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent)]">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 4v16m8-8H4" />
-              </svg>
-            </span>
-            새 노트 추가
-          </button>
+          {mode === 'private' && (
+            <button
+              type="button"
+              onClick={() => { onMobileClose?.(); document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth' }); }}
+              className="flex w-full items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--accent)] transition-colors hover:bg-[var(--accent-muted)]/50"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-muted)] text-[var(--accent)]">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 4v16m8-8H4" />
+                </svg>
+              </span>
+              새 노트 추가
+            </button>
+          )}
           {onFullNotesClick ? (
             <button
               type="button"
@@ -177,57 +183,87 @@ export default function Sidebar({
               </span>
             )}
           </button>
-          <Link
-            href="/dashboard/graph"
-            onClick={onMobileClose}
-            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </span>
-            그래프 뷰
-          </Link>
-          <Link
-            href="/dashboard/links?reset=1"
-            onClick={(e) => {
-              onLinksClick?.()
-              onMobileClose?.()
-            }}
-            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            </span>
-            수업 자료
-          </Link>
-          <Link
-            href="/dashboard/projects"
-            onClick={onMobileClose}
-            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </span>
-            프로젝트
-          </Link>
+          {mode === 'private' && (
+            <>
+              <Link
+                href="/dashboard/graph"
+                onClick={onMobileClose}
+                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </span>
+                그래프 뷰
+              </Link>
+              <Link
+                href="/dashboard/links?reset=1"
+                onClick={(e) => {
+                  onLinksClick?.()
+                  onMobileClose?.()
+                }}
+                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                </span>
+                수업 자료
+              </Link>
+              <Link
+                href="/dashboard/projects"
+                onClick={onMobileClose}
+                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                </span>
+                프로젝트
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
-      <SidebarCategories
-        categories={categories}
-        selectedCategoryId={selectedCategoryId}
-        onSelectCategory={onSelectCategory}
-        onCategoriesChange={onCategoriesChange}
-        userId={userId}
-        notesCountByCategory={notesCountWithFavorites}
-        onMobileClose={onMobileClose}
-      />
+      {mode === 'private' ? (
+        <SidebarCategories
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={onSelectCategory}
+          onCategoriesChange={onCategoriesChange}
+          userId={userId}
+          notesCountByCategory={notesCountWithFavorites}
+          onMobileClose={onMobileClose}
+        />
+      ) : (
+        <div className="pl-4 pr-0 py-3">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">카테고리</p>
+          <ul className="space-y-1 max-h-52 overflow-auto pr-2">
+            {categories.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectCategory(c.id)
+                    onMobileClose?.()
+                  }}
+                  className={`w-full truncate rounded-lg px-3 py-2 text-left text-sm ${
+                    selectedCategoryId === c.id
+                      ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
+                      : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {c.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="pl-4 pr-0 py-3">
         <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">
@@ -260,7 +296,7 @@ export default function Sidebar({
             recentNotes.map((note) => (
               <li key={note.id}>
                 <Link
-                  href={`/dashboard/notes/${note.id}`}
+                  href={`${noteHrefBase}/${note.id}`}
                   onClick={onMobileClose}
                   className="block truncate rounded-lg pl-3 pr-1 py-2 text-sm text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >

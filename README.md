@@ -1,4 +1,4 @@
-# Study Notes Summarizer (V5.7)
+# Study Notes Summarizer (V5.8)
 
 https://web-study-notes-summarizer.vercel.app
 
@@ -13,6 +13,8 @@ https://web-study-notes-summarizer.vercel.app
 
 | 버전 | 날짜 | 항목 | 내용 |
 |------|------|------|------|
+| V5.8 | 2026-06-07 | 공개 관람 대시보드 확장 | 공개 홈(`/public`)을 관리자 대시보드 흐름에 맞춰 확장. 사이드바 기반으로 그래프(`/public/graph`), 수업 자료(`/public/links`), 프로젝트(`/public/projects`)까지 이동 가능하고, 공개 통계 카드를 총 노트·수업 자료·프로젝트·방문 시간으로 구성. |
+| V5.8 | 2026-06-07 | 공개 수업 자료·프로젝트 디테일 강화 | 공개 수업 자료 화면에 그룹/소그룹/링크 계층형 펼침·접기 UI와 링크-노트 연결 정보 표시를 추가. 공개 프로젝트 화면은 카드형 목록 개선 및 상세(`/public/projects/[id]`)를 신설해 프로젝트 정보·연결된 공개 노트·프로젝트 파일 목록을 읽기 전용으로 제공. |
 | V5.7 | 2026-06-05 | 비회원 공개 관람 모드 | 로그인/회원가입 화면에서 관리자 노트 공개 관람으로 이동 가능. `/public`, `/public/notes/[id]` 경로로 인증 없이 요약만 읽기 전용으로 확인 가능. |
 | V5.7 | 2026-06-05 | 관리자 공개/숨김 제어 | 관리자 노트 상세에서 공개 여부 토글 추가. `notes.is_public` 기반으로 숨김 처리한 노트는 공개 관람 목록/상세에서 노출되지 않음. |
 | V5.6 | 2026-03-16 | 수업 자료 링크 개수 제한 해제 | 수업 자료 페이지 서버·클라이언트에서 `study_links`, `link_groups`, `link_subgroups` 조회 시 `.range(0, 49999)` 적용해 최대 5만 건까지 조회되도록 변경. |
@@ -41,7 +43,7 @@ https://web-study-notes-summarizer.vercel.app
 | 기능 | 설명 |
 |------|------|
 | **인증** | 로그인/회원가입 (Supabase Auth). 익명 로그인 지원. 이메일 가입 시 관리자 승인 후 이용 가능 |
-| **비회원 공개 관람** | 로그인 없이 `/public`에서 관리자 노트 요약을 읽기 전용으로 확인 가능. 생성/수정/삭제/원본 보기는 불가 |
+| **비회원 공개 관람** | 로그인 없이 `/public`에서 관리자 공개 노트를 대시보드 형태로 확인 가능. `/public/graph`, `/public/links`, `/public/projects`, `/public/projects/[id]`, `/public/notes/[id]` 제공. 전체 화면은 읽기 전용으로 생성/수정/삭제/업로드/원본 보기 불가 |
 | **파일 업로드** | `.txt`, `.md` 파일 드래그 앤 드롭 또는 선택 업로드 (최대 10MB). Storage 버킷 `study-notes`에 저장 |
 | **자동 요약** | 업로드 후 API가 Storage에서 파일을 읽어 LLM으로 한국어 마크다운 요약 생성. 상태: `pending` → `processing` → `completed` / `failed` |
 | **요약 재생성** | 실패하거나 다시 만들고 싶을 때 `/api/summarize/retry`로 재시도 |
@@ -70,8 +72,12 @@ Study-Notes-summarizer/
 │   ├── globals.css               # 전역 스타일, CSS 변수(테마)
 │   ├── error.tsx                 # 전역 에러 바운더리
 │   ├── public/                   # 비회원 공개 관람
-│   │   ├── page.tsx              # 공개 노트 목록
-│   │   └── notes/[id]/page.tsx   # 공개 노트 상세(요약 전용)
+│   │   ├── page.tsx              # 공개 대시보드
+│   │   ├── public-dashboard-client.tsx
+│   │   ├── notes/[id]/page.tsx   # 공개 노트 상세(요약 전용)
+│   │   ├── graph/page.tsx        # 공개 그래프 뷰
+│   │   ├── links/                # 공개 수업 자료 (page.tsx, public-links-client.tsx)
+│   │   └── projects/             # 공개 프로젝트 (page.tsx, public-projects-client.tsx, [id]/)
 │   ├── auth/                     # 인증 페이지
 │   │   ├── login/page.tsx
 │   │   ├── signup/page.tsx
@@ -147,6 +153,10 @@ Study-Notes-summarizer/
 | `/auth/signup` | 회원가입 페이지 |
 | `/public` | 비회원 공개 관람 목록 (관리자 공개 노트 요약만 표시) |
 | `/public/notes/[id]` | 비회원 공개 관람 상세 (요약 전용, 원본/편집 불가) |
+| `/public/graph` | 비회원 공개 그래프 뷰 |
+| `/public/links` | 비회원 공개 수업 자료 화면 (그룹/소그룹/링크 읽기 전용) |
+| `/public/projects` | 비회원 공개 프로젝트 목록 |
+| `/public/projects/[id]` | 비회원 공개 프로젝트 상세 (프로젝트 정보/연결 노트/파일 목록 읽기 전용) |
 | `/dashboard` | 메인 대시보드. 학습 통계(총 노트·수업 자료·프로젝트·공부 시간), 업로드, 검색, 보기(1/3/5/7/10·전체)·정렬, 즐겨찾기 필터, 페이지네이션, 노트 목록. `?date=`, `?category=` 로 날짜/카테고리 필터(`?category=_favorites` 시 즐겨찾기만 표시) |
 | `/dashboard/notes/[id]` | 노트 하나 상세 보기 |
 | `/dashboard/projects` | 프로젝트 목록 |
@@ -279,8 +289,9 @@ DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 0
 
 1. 로그인/회원가입 화면에서 공개 관람 버튼으로 `/public` 진입
 2. 서버에서 `ADMIN_EMAILS` 에 해당하는 관리자 계정을 찾고, 해당 작성자의 노트 중 `is_public = true` + `status = completed` + `summary not null` 데이터만 조회
-3. 목록에서 선택한 노트는 `/public/notes/[id]` 상세에서 요약만 렌더링
-4. 공개 화면은 읽기 전용으로 동작하며 원본 파일/수정/삭제 기능을 제공하지 않음
+3. 공개 대시보드에서 사이드바로 그래프(`/public/graph`), 수업 자료(`/public/links`), 프로젝트(`/public/projects`)까지 동일 흐름으로 탐색
+4. 공개 프로젝트 상세(`/public/projects/[id]`)에서 연결 노트/파일 목록 확인 가능, 노트 상세(`/public/notes/[id]`)는 요약만 표시
+5. 공개 화면은 읽기 전용으로 동작하며 생성/수정/삭제/업로드/원본 파일 보기 기능을 제공하지 않음
 
 ---
 
@@ -288,7 +299,7 @@ DB 구조는 `supabase/migrations/` 안의 SQL 파일을 번호 순서(001 → 0
 
 ### 기능
 
-파일 업로드 → 자동 요약, 검색, 카테고리·프로젝트·링크·그래프·비교, 이메일 가입·관리자 승인, 익명 로그인, 비회원 공개 관람(요약 읽기 전용) 지원. 노트 즐겨찾기·사이드바 즐겨찾기 묶음, 대시보드 페이지네이션, 학습 통계(공부 시간) 표시, 그래프 뷰 모바일 터치 지원 포함.
+파일 업로드 → 자동 요약, 검색, 카테고리·프로젝트·링크·그래프·비교, 이메일 가입·관리자 승인, 익명 로그인 지원. 비회원 공개 관람은 대시보드/그래프/수업 자료/프로젝트/노트 상세를 읽기 전용으로 제공. 노트 즐겨찾기·사이드바 즐겨찾기 묶음, 대시보드 페이지네이션, 학습 통계(공부 시간) 표시, 그래프 뷰 모바일 터치 지원 포함.
 
 ### 구조
 

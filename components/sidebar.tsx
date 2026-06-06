@@ -59,6 +59,10 @@ export default function Sidebar({
   mode = 'private',
   noteHrefBase = '/dashboard/notes',
 }: SidebarProps) {
+  const rootHref = mode === 'public' ? '/public' : '/dashboard'
+  const graphHref = mode === 'public' ? '/public/graph' : '/dashboard/graph'
+  const linksHref = mode === 'public' ? '/public/links?reset=1' : '/dashboard/links?reset=1'
+  const projectsHref = mode === 'public' ? '/public/projects' : '/dashboard/projects'
   const today = startOfDay(new Date())
   const todayKey = format(today, 'yyyy-MM-dd')
   const weekStart = startOfWeek(today, { locale: ko })
@@ -99,7 +103,7 @@ export default function Sidebar({
   const content = (
     <>
       <div className="flex h-14 shrink-0 items-center justify-between pl-4 pr-0 lg:justify-start">
-        <Link href={mode === 'public' ? '/public' : '/dashboard'} className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline">
+        <Link href={rootHref} className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline">
           <img 
             src={isDark ? "/logo-dark.png" : "/logo.png"} 
             alt="" 
@@ -154,7 +158,7 @@ export default function Sidebar({
             </button>
           ) : (
             <Link
-              href="/dashboard?reset=1"
+              href={`${rootHref}?reset=1`}
               onClick={onMobileClose}
               className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
             >
@@ -183,49 +187,45 @@ export default function Sidebar({
               </span>
             )}
           </button>
-          {mode === 'private' && (
-            <>
-              <Link
-                href="/dashboard/graph"
-                onClick={onMobileClose}
-                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </span>
-                그래프 뷰
-              </Link>
-              <Link
-                href="/dashboard/links?reset=1"
-                onClick={(e) => {
-                  onLinksClick?.()
-                  onMobileClose?.()
-                }}
-                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                </span>
-                수업 자료
-              </Link>
-              <Link
-                href="/dashboard/projects"
-                onClick={onMobileClose}
-                className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                </span>
-                프로젝트
-              </Link>
-            </>
-          )}
+          <Link
+            href={graphHref}
+            onClick={onMobileClose}
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </span>
+            그래프 뷰
+          </Link>
+          <Link
+            href={linksHref}
+            onClick={(e) => {
+              onLinksClick?.()
+              onMobileClose?.()
+            }}
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </span>
+            수업 자료
+          </Link>
+          <Link
+            href={projectsHref}
+            onClick={onMobileClose}
+            className="flex items-center gap-3 rounded-xl pl-3 pr-1 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-hover)] text-[var(--foreground-subtle)]">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </span>
+            프로젝트
+          </Link>
         </div>
       </nav>
 

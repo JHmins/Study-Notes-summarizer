@@ -14,6 +14,9 @@ interface GraphViewClientProps {
   categories: Category[]
   userEmail: string
   isAdmin?: boolean
+  mode?: 'private' | 'public'
+  homeHref?: string
+  noteHrefBase?: string
   /** 날짜 문자열 YYYY-MM-DD 목록 (노트에서 추출, 정렬) */
   dateKeys?: string[]
   /** 노트 id → 해당 노트에서 추출한 단어 목록 */
@@ -47,6 +50,9 @@ export default function GraphViewClient({
   categories,
   userEmail,
   isAdmin,
+  mode = 'private',
+  homeHref = '/dashboard',
+  noteHrefBase = '/dashboard/notes',
   dateKeys = [],
   noteWords = {},
 }: GraphViewClientProps) {
@@ -274,7 +280,7 @@ export default function GraphViewClient({
     <div className="fixed inset-0 flex flex-col bg-[var(--background)] overflow-hidden">
       <header className="absolute top-0 left-0 right-0 z-10 flex h-14 items-center justify-between px-4 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--border)]/40 sm:px-6">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline hover:opacity-80 transition-opacity">
+          <Link href={homeHref} className="text-lg font-semibold tracking-tight text-[var(--foreground)] no-underline hover:opacity-80 transition-opacity">
             Study Notes
           </Link>
           <span className="text-sm font-medium text-[var(--accent)]">그래프 뷰</span>
@@ -282,7 +288,7 @@ export default function GraphViewClient({
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <span className="max-sm:hidden text-sm text-[var(--foreground-subtle)]">{userEmail}</span>
-          {isAdmin && (
+          {mode === 'private' && isAdmin && (
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-md bg-[var(--accent-muted)] px-2 py-1 text-xs font-medium text-[var(--accent)]">
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -290,20 +296,26 @@ export default function GraphViewClient({
               관리자
             </span>
           )}
-          {isAdmin && (
+          {mode === 'private' && isAdmin && (
             <Link href="/admin/approvals" className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--accent)] hover:underline">
               가입 승인
             </Link>
           )}
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-          >
-            로그아웃
-          </button>
-          <Link href="/dashboard" className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]">
-            대시보드
+          {mode === 'private' ? (
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            >
+              로그아웃
+            </button>
+          ) : (
+            <Link href="/auth/login" className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]">
+              로그인
+            </Link>
+          )}
+          <Link href={homeHref} className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]">
+            {mode === 'private' ? '대시보드' : '목록'}
           </Link>
         </div>
       </header>
@@ -458,7 +470,7 @@ export default function GraphViewClient({
                   style={{ animation: mounted ? 'graphNodeIn 0.4s ease-out forwards' : 'none', animationDelay: `${400 + i * 35}ms`, opacity: 0 }}
                   onMouseEnter={() => setHovered(node.id)}
                   onMouseLeave={() => setHovered(null)}
-                  onClick={() => router.push(`/dashboard/notes/${node.id}`)}
+                  onClick={() => router.push(`${noteHrefBase}/${node.id}`)}
                 >
                   <circle r={NOTE_R} fill="var(--surface)" stroke={strokeColor} strokeWidth={isHover ? 2.5 : 1.2} strokeOpacity={isHover ? 0.95 : 0.55} filter={isHover ? 'url(#glow)' : undefined} className="transition-all duration-200" />
                   <text textAnchor="middle" dominantBaseline="middle" className="fill-[var(--foreground-muted)] text-xs font-medium pointer-events-none select-none" style={{ fontFamily: 'var(--font-noto), system-ui, sans-serif' }}>{(node.title || '제목 없음').slice(0, 8)}{(node.title || '').length > 8 ? '…' : ''}</text>
@@ -499,7 +511,7 @@ export default function GraphViewClient({
               </div>
               <h2 className="text-xl font-semibold text-[var(--foreground)] mb-2">노트가 없어요</h2>
               <p className="text-sm text-[var(--foreground-muted)] mb-6 leading-relaxed">대시보드에서 .txt / .md 파일을 업로드하면 그래프에 나타납니다.</p>
-              <Link href="/dashboard" className="inline-block rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity shadow-sm">대시보드로 이동</Link>
+              <Link href={homeHref} className="inline-block rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity shadow-sm">{mode === 'private' ? '대시보드로 이동' : '목록으로 이동'}</Link>
             </div>
           </div>
         )}

@@ -15,9 +15,11 @@ interface PublicDashboardClientProps {
   notes: Note[]
   categories: Category[]
   authorLabel: string
+  linksCount: number
+  projectsCount: number
 }
 
-export default function PublicDashboardClient({ notes, categories, authorLabel }: PublicDashboardClientProps) {
+export default function PublicDashboardClient({ notes, categories, authorLabel, linksCount, projectsCount }: PublicDashboardClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
@@ -27,6 +29,7 @@ export default function PublicDashboardClient({ notes, categories, authorLabel }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [perPage, setPerPage] = useState<number | 'all'>(10)
   const [currentPage, setCurrentPage] = useState(1)
+  const [visitSeconds, setVisitSeconds] = useState(0)
 
   const filteredNotes = useMemo(() => {
     let list = notes.filter((note) => {
@@ -71,6 +74,17 @@ export default function PublicDashboardClient({ notes, categories, authorLabel }
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages))
   }, [currentPage, totalPages])
+
+  useEffect(() => {
+    const KEY = 'publicVisitStart'
+    const stored = sessionStorage.getItem(KEY)
+    const start = stored ? Number(stored) : Date.now()
+    if (!stored) sessionStorage.setItem(KEY, String(start))
+    const tick = () => setVisitSeconds(Math.max(0, Math.floor((Date.now() - start) / 1000)))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className="min-h-screen flex bg-[var(--background)] text-[var(--foreground)]">
@@ -128,16 +142,27 @@ export default function PublicDashboardClient({ notes, categories, authorLabel }
         <main className="flex-1 overflow-auto px-4 py-6 sm:px-6">
           <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="text-xs text-[var(--foreground-subtle)]">공개 노트</p>
-              <p className="mt-1 text-2xl font-bold">{notes.length}</p>
+              <p className="text-xs text-[var(--foreground-subtle)]">총 노트</p>
+              <p className="mt-1 text-2xl font-bold">{notes.length}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="text-xs text-[var(--foreground-subtle)]">오늘 노트</p>
-              <p className="mt-1 text-2xl font-bold">{todayCount}</p>
+              <p className="text-xs text-[var(--foreground-subtle)]">수업 자료</p>
+              <p className="mt-1 text-2xl font-bold">{linksCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
             </div>
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 col-span-2 sm:col-span-1">
-              <p className="text-xs text-[var(--foreground-subtle)]">읽기 전용</p>
-              <p className="mt-1 text-sm font-medium text-[var(--foreground-muted)]">생성/수정/삭제/원본 보기는 비활성화</p>
+              <p className="text-xs text-[var(--foreground-subtle)]">프로젝트</p>
+              <p className="mt-1 text-2xl font-bold">{projectsCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
+            </div>
+            <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-muted)]/20 p-4 col-span-2 sm:col-span-3">
+              <p className="text-xs text-[var(--accent)]">방문 시간</p>
+              <p className="mt-1 text-xl font-bold text-[var(--accent)]">
+                {visitSeconds >= 3600
+                  ? `${Math.floor(visitSeconds / 3600)}시간 ${Math.floor((visitSeconds % 3600) / 60)}분`
+                  : visitSeconds >= 60
+                    ? `${Math.floor(visitSeconds / 60)}분 ${visitSeconds % 60}초`
+                    : `${visitSeconds}초`}
+              </p>
+              <p className="mt-1 text-xs text-[var(--foreground-subtle)]">읽기 전용</p>
             </div>
           </section>
 
@@ -201,6 +226,16 @@ export default function PublicDashboardClient({ notes, categories, authorLabel }
                     <p className="mt-2 line-clamp-2 text-sm text-[var(--foreground-muted)]">
                       {(note.summary ?? '').replace(/^#+\s*/gm, '').replace(/\n+/g, ' ').trim().slice(0, 220)}
                     </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {(note.category_ids ?? (note.category_id ? [note.category_id] : [])).map((cid) => {
+                        const cat = categories.find((c) => c.id === cid)
+                        return (
+                          <span key={cid} className="inline-flex items-center rounded-md bg-[var(--accent-muted)] px-1.5 py-0.5 text-xs text-[var(--accent)]">
+                            {cat?.name ?? cid}
+                          </span>
+                        )
+                      })}
+                    </div>
                   </Link>
                 </li>
               ))}

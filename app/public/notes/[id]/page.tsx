@@ -52,9 +52,7 @@ export default async function PublicNoteDetailPage({ params }: PageProps) {
             <SimpleMarkdown>{note.summary}</SimpleMarkdown>
           </div>
 
-          <p className="mt-4 text-xs text-[var(--foreground-subtle)]">
-            읽기 전용 공개 화면입니다. 원본 파일, 수정, 삭제, 새 글 작성 기능은 제공되지 않습니다.
-          </p>
+          <p className="mt-4 text-xs text-[var(--foreground-subtle)]">읽기 전용</p>
         </article>
       </main>
     </div>

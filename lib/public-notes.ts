@@ -7,6 +7,11 @@ interface PublicAuthor {
   email: string | null
 }
 
+export async function getPublicAuthorIds(): Promise<string[]> {
+  const authors = await getPublicAuthors()
+  return authors.map((a) => a.id)
+}
+
 export async function getPublicAuthors(): Promise<PublicAuthor[]> {
   if (ADMIN_EMAILS.length === 0) return []
   const adminEmailSet = new Set(ADMIN_EMAILS.map((e) => e.toLowerCase()))
@@ -30,8 +35,7 @@ export async function getPublicAuthors(): Promise<PublicAuthor[]> {
 }
 
 export async function getPublicNotes(): Promise<Note[]> {
-  const authors = await getPublicAuthors()
-  const authorIds = authors.map((a) => a.id)
+  const authorIds = await getPublicAuthorIds()
   if (authorIds.length === 0) return []
 
   const admin = createAdminClient()
@@ -90,4 +94,78 @@ export async function getPublicCategories(notes: Note[]): Promise<Category[]> {
     .order('created_at', { ascending: true })
 
   return (data ?? []) as Category[]
+}
+
+export async function getPublicLinks() {
+  const authorIds = await getPublicAuthorIds()
+  if (authorIds.length === 0) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('study_links')
+    .select('*')
+    .in('user_id', authorIds)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Public links query error:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function getPublicProjects() {
+  const authorIds = await getPublicAuthorIds()
+  if (authorIds.length === 0) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('projects')
+    .select('*')
+    .in('user_id', authorIds)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Public projects query error:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function getPublicLinkGroups() {
+  const authorIds = await getPublicAuthorIds()
+  if (authorIds.length === 0) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('link_groups')
+    .select('*')
+    .in('user_id', authorIds)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Public link groups query error:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function getPublicLinkSubgroups() {
+  const authorIds = await getPublicAuthorIds()
+  if (authorIds.length === 0) return []
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('link_subgroups')
+    .select('*')
+    .in('user_id', authorIds)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Public link subgroups query error:', error)
+    return []
+  }
+  return data ?? []
 }

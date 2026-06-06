@@ -140,29 +140,32 @@ export default function PublicDashboardClient({ notes, categories, authorLabel, 
         </header>
 
         <main className="flex-1 overflow-auto px-4 py-6 sm:px-6">
-          <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="text-xs text-[var(--foreground-subtle)]">총 노트</p>
+          <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="공개 학습 통계">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">총 노트</p>
               <p className="mt-1 text-2xl font-bold">{notes.length}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">정리한 파일</p>
             </div>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <p className="text-xs text-[var(--foreground-subtle)]">수업 자료</p>
+            <Link href="/public/links" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md hover:border-[var(--accent)]/40">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">수업 자료</p>
               <p className="mt-1 text-2xl font-bold">{linksCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
-            </div>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 col-span-2 sm:col-span-1">
-              <p className="text-xs text-[var(--foreground-subtle)]">프로젝트</p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">저장한 링크</p>
+            </Link>
+            <Link href="/public/projects" className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm transition-shadow hover:shadow-md hover:border-[var(--accent)]/40">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--foreground-subtle)]">프로젝트</p>
               <p className="mt-1 text-2xl font-bold">{projectsCount}<span className="text-base font-normal text-[var(--foreground-muted)]">개</span></p>
-            </div>
-            <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-muted)]/20 p-4 col-span-2 sm:col-span-3">
-              <p className="text-xs text-[var(--accent)]">방문 시간</p>
-              <p className="mt-1 text-xl font-bold text-[var(--accent)]">
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">진행 중</p>
+            </Link>
+            <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent-muted)]/20 p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--accent)]">방문 시간</p>
+              <p className="mt-1 text-2xl font-bold text-[var(--accent)]">
                 {visitSeconds >= 3600
                   ? `${Math.floor(visitSeconds / 3600)}시간 ${Math.floor((visitSeconds % 3600) / 60)}분`
                   : visitSeconds >= 60
                     ? `${Math.floor(visitSeconds / 60)}분 ${visitSeconds % 60}초`
                     : `${visitSeconds}초`}
               </p>
-              <p className="mt-1 text-xs text-[var(--foreground-subtle)]">읽기 전용</p>
+              <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">읽기 전용</p>
             </div>
           </section>
 
